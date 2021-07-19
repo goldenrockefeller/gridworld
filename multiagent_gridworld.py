@@ -1000,19 +1000,14 @@ class Trajectory:
         self.actions = [None for i in range(n_steps)]
 
 class Domain:
-    def __init__(self, n_rows, n_cols, action_fail_rate, time_cost, reward_goal_a, reward_goal_b, reward_goal_ac, reward_goal_bc):
+    def __init__(self, n_rows, n_cols, action_fail_rate, time_cost, reward_goal):
         self.n_steps = 50
         self.n_rows = n_rows
         self.n_cols = n_cols
         self.action_fail_rate = action_fail_rate
         self.time_cost = time_cost # positive cost is negative reward
-        self.reward_goal_a = reward_goal_a
-        self.reward_goal_b = reward_goal_b
-        self.reward_goal_ac = reward_goal_ac
-        self.reward_goal_bc = reward_goal_bc
-        self.goal_a = (0, 1)
-        self.goal_b = (1, 0)
-        self.goal_c = (1, 1)
+        self.reward_goal = reward_goal
+        self.goal = (n_rows - 1, n_cols - 1)
         self.n_agents = 2
 
 
@@ -1021,7 +1016,6 @@ class Domain:
         n_steps = self.n_steps
         n_rows = self.n_rows
         n_cols = self.n_cols
-        mode = 0
 
         posns = [(0,0) for i in range(n_agents)]
         trajectories = [Trajectory(n_steps) for i in range(n_agents)]
@@ -1055,23 +1049,10 @@ class Domain:
                 )
 
 
-            if all(pos == self.goal_a for pos in posns) and mode == 0:
-                reward += self.reward_goal_a
-                mode = 1
+            if all(pos == self.goal for pos in posns):
+                reward += self.reward_goal
+                ending_early = True
 
-            if all(pos == self.goal_b for pos in posns) and mode == 0:
-                reward += self.reward_goal_b
-                mode = 2
-
-            if all(pos == self.goal_c for pos in posns):
-                if mode != 0:
-                    ending_early = True
-
-                if mode == 1:
-                    reward += self.reward_goal_ac
-
-                if mode == 2:
-                    reward += self.reward_goal_bc
 
             rewards[step_id] = reward
 
@@ -1081,6 +1062,8 @@ class Domain:
 
         for agent_id in range(n_agents):
             trajectories[agent_id].rewards = rewards.copy()
+            trajectories[agent_id].observations = list(filter(lambda x: x is not None, trajectories[agent_id].observations))
+            trajectories[agent_id].actions = list(filter(lambda x: x is not None, trajectories[agent_id].actions))
 
         return trajectories
 
@@ -1141,7 +1124,7 @@ class Policy():
 
     def mutate(self, dist):
         for observation in all_observations(self.n_rows, self.n_cols):
-            self.action_probabilities[observation] = np.random.dirichlet(np.exp(dist[observation]))
+            self.action_probabilities[observation] = np.random.dirichlet(dist[observation])
 
 def create_dist(n_rows, n_cols, precision):
     dist = {}
@@ -1155,19 +1138,33 @@ def create_dist(n_rows, n_cols, precision):
 
 
 
-def update_dist(dist, speed, bonus_mark, phenotypes):
+def update_dist(dist, speed, sustain, phenotypes, n_rows, n_cols):
 
     phenotypes.sort(reverse = True, key = lambda phenotype : phenotype["fitness"])
 
     for i in range(len(phenotypes) // 2):
         policy = phenotypes[i]["policy"]
+        trajectory = phenotypes[i]["trajectory"]
 
-        for observation in policy.action_probabilities.keys():
+        observations = trajectory.observations
+        actions = trajectory.actions
+
+        for observation, action in zip(observations, actions):
+            cell = (observation[0], observation[1])
+            possible_actions = possible_actions_for_cell(cell, n_rows, n_cols)
             dist_observation = dist[observation]
-            for action_id in range(len(dist_observation)):
-                dist_observation[action_id] += speed * (policy.action_probabilities[observation][action_id] - 1. / len(policy.action_probabilities[observation]))
 
-    for observation in dist.keys():
-        dist_observation = dist[observation]
-        for action_id in range(len(dist_observation)):
-            dist_observation[action_id] += bonus_mark
+            if len(dist_observation) != len(possible_actions):
+                # Something went wrong
+                raise RuntimeError("Something went wrong")
+
+            for action_id in range(len(possible_actions)):
+                if possible_actions[action_id] == action:
+                    dist_observation[action_id] += 1
+
+                dist_observation[action_id] *= sustain
+
+    # for observation in dist.keys():
+    #     dist_observation = dist[observation]
+    #     for action_id in range(len(dist_observation)):
+    #         dist_observation[action_id] += bonus_mark

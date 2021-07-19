@@ -9,7 +9,7 @@ import sys
 
 
 def run():
-    experiment_name = "MAG_1"
+    experiment_name = "MAG_2"
     n_stats_run_per_process = 1
 
 
@@ -32,7 +32,7 @@ def run():
 
 
 if __name__ == '__main__':
-    # r = Runner('test', (uqsc,))
+    # r = Runner('test', (qsc,))
     # r.new_run()
     n_processes = int(sys.argv[1])
     print(f"Number of processes: {n_processes}")

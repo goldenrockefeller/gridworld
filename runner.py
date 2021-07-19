@@ -45,8 +45,8 @@ class Runner:
 
         args = {
             "n_steps" : 20,
-            "n_rows" : 2,
-            "n_cols" : 2,
+            "n_rows" : 3,
+            "n_cols" : 3,
             "horizon" : 1000
         }
 
@@ -59,22 +59,19 @@ class Runner:
         n_rows = args["n_rows"]
         n_cols = args["n_cols"]
         action_fail_rate = 0.0
-        time_cost = 0.0
-        reward_goal_a = 40.7
-        reward_goal_ac = 90.
-        reward_goal_b = 40.
-        reward_goal_bc = 90.5
+        time_cost = 0.01
+        reward_goal = 1.0
 
-        domain = Domain(n_rows, n_cols, action_fail_rate, time_cost, reward_goal_a, reward_goal_b, reward_goal_ac, reward_goal_bc)
+        domain = Domain(n_rows, n_cols, action_fail_rate, time_cost, reward_goal)
         domain.n_steps = n_steps
 
         n_epochs = 3000
         n_policies = 50
 
 
-        speed = 0.0001
-        bonus_mark = 0.00005
-        precision = -2.
+        speed = 0.001
+        sustain = 0.9999
+        precision = 0.1
         dist_a = create_dist(n_rows, n_cols, precision)
         dist_b = create_dist(n_rows, n_cols, precision)
 
@@ -107,26 +104,28 @@ class Runner:
 
                 trajectories = domain.execute([policy_a, policy_b])
 
-                observations_a = list(filter(lambda x: x is not None, trajectories[0].observations))
-                actions_a = list(filter(lambda x: x is not None, trajectories[0].actions))
+                observations_a = trajectories[0].observations
+                actions_a = trajectories[0].actions
                 reward_a = trajectories[0].rewards
                 fitness_a = critic_a.eval(observations_a, actions_a)
                 new_critic_a.update(observations_a, actions_a, reward_a)
                 phenotype_a["fitness"] = fitness_a
+                phenotype_a["trajectory"] = trajectories[0]
 
-                observations_b = list(filter(lambda x: x is not None, trajectories[1].observations))
-                actions_b = list(filter(lambda x: x is not None, trajectories[1].actions))
+                observations_b = trajectories[1].observations
+                actions_b = trajectories[1].actions
                 reward_b = trajectories[1].rewards
                 fitness_b = critic_b.eval(observations_b, actions_b)
                 new_critic_b.update(observations_b, actions_b, reward_b)
                 phenotype_b["fitness"] = fitness_b
+                phenotype_b["trajectory"] = trajectories[1]
 
 
             critic_a = new_critic_a
             critic_b = new_critic_b
 
-            update_dist(dist_a, speed, bonus_mark, phenotypes_a)
-            update_dist(dist_b, speed, bonus_mark, phenotypes_b)
+            update_dist(dist_a, speed, sustain, phenotypes_a, n_rows, n_cols)
+            update_dist(dist_b, speed, sustain, phenotypes_b, n_rows, n_cols)
 
             self.critic_a = critic_a
             self.dist_a = dist_a
