@@ -1160,7 +1160,7 @@ def update_dist(dist, speed, sustain, phenotypes, n_rows, n_cols):
 
             for action_id in range(len(possible_actions)):
                 if possible_actions[action_id] == action:
-                    dist_observation[action_id] += 1
+                    dist_observation[action_id] += speed
 
                 dist_observation[action_id] *= sustain
 

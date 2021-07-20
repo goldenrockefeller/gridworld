@@ -65,12 +65,12 @@ class Runner:
         domain = Domain(n_rows, n_cols, action_fail_rate, time_cost, reward_goal)
         domain.n_steps = n_steps
 
-        n_epochs = 3000
+        n_epochs = 10000
         n_policies = 50
 
 
         speed = 0.001
-        sustain = 0.9999
+        sustain = 0.99999
         precision = 0.1
         dist_a = create_dist(n_rows, n_cols, precision)
         dist_b = create_dist(n_rows, n_cols, precision)
