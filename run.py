@@ -14,7 +14,7 @@ def run():
 
 
     mods_to_mix = [
-        (noc),
+        (noc,),
     ]
 
 
