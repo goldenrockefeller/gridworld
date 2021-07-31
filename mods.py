@@ -34,6 +34,8 @@ def stepped_v_model(n_steps, n_rows, n_cols):
     model = {observation: [0.] * n_steps for observation in all_observations(n_rows, n_cols)}
     return model
 
+def noc(args):
+    args["critic"] =  None
 
 def mtc(args):
     n_steps = args["n_steps"]

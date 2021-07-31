@@ -54,7 +54,7 @@ class Runner:
             setup_func(args)
 
         critic_a = args["critic"]
-        critic_b = critic_a.copy()
+        critic_b = critic_a.copy() if critic_a is not None else None
         n_steps = args["n_steps"]
         n_rows = args["n_rows"]
         n_cols = args["n_cols"]
@@ -92,8 +92,8 @@ class Runner:
             phenotypes_a = phenotypes_from_population(population_a)
             phenotypes_b = phenotypes_from_population(population_b)
 
-            new_critic_a = critic_a.copy()
-            new_critic_b = critic_b.copy()
+            new_critic_a = critic_a.copy() if critic_a is not None else None
+            new_critic_b = critic_b.copy() if critic_b is not None else None
 
             for phenotype_id in range(len(phenotypes_a)):
                 phenotype_a = phenotypes_a[phenotype_id]
@@ -106,17 +106,25 @@ class Runner:
 
                 observations_a = trajectories[0].observations
                 actions_a = trajectories[0].actions
-                reward_a = trajectories[0].rewards
-                fitness_a = critic_a.eval(observations_a, actions_a)
-                new_critic_a.update(observations_a, actions_a, reward_a)
+                rewards_a = trajectories[0].rewards
+                if critic_a is not None:
+                    fitness_a = critic_a.eval(observations_a, actions_a)
+                else:
+                    fitness_a = sum(rewards_a)
+                if new_critic_a is not None:
+                    new_critic_a.update(observations_a, actions_a, rewards_a)
                 phenotype_a["fitness"] = fitness_a
                 phenotype_a["trajectory"] = trajectories[0]
 
                 observations_b = trajectories[1].observations
                 actions_b = trajectories[1].actions
-                reward_b = trajectories[1].rewards
-                fitness_b = critic_b.eval(observations_b, actions_b)
-                new_critic_b.update(observations_b, actions_b, reward_b)
+                rewards_b = trajectories[1].rewards
+                if critic_b is not None:
+                    fitness_b = critic_b.eval(observations_b, actions_b)
+                else:
+                    fitness_b = sum(rewards_b)
+                if new_critic_b is not None:
+                    new_critic_b.update(observations_b, actions_b, rewards_b)
                 phenotype_b["fitness"] = fitness_b
                 phenotype_b["trajectory"] = trajectories[1]
 
@@ -152,12 +160,14 @@ class Runner:
             score = sum(trajectories[0].rewards)
             observations = list(filter(lambda x: x is not None, trajectories[0].observations))
             actions = list(filter(lambda x: x is not None, trajectories[0].actions))
-            critic_a_eval = critic_a.eval(observations, actions)
-            critic_a_score_loss = 0.5 * (critic_a_eval - score) ** 2
+            if critic_a is not None:
+                critic_a_eval = critic_a.eval(observations, actions)
+                critic_a_score_loss = 0.5 * (critic_a_eval - score) ** 2
 
             scores.append(score)
-            critic_a_evals.append(  critic_a.eval(observations, actions) )
-            critic_a_score_losses.append( critic_a_score_loss )
+            if critic_a is not None:
+                critic_a_evals.append(  critic_a.eval(observations, actions) )
+                critic_a_score_losses.append( critic_a_score_loss )
 
 
             # print(critic.learning_rate_scheme.denoms)
