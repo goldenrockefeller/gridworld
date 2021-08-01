@@ -9,12 +9,12 @@ import sys
 
 
 def run():
-    experiment_name = "MAG_2b"
+    experiment_name = "MAG_4by4"
     n_stats_run_per_process = 1
 
 
     mods_to_mix = [
-        (noc,),
+        (noc,msc,imsc,qsc,asc,uqsc),
     ]
 
 

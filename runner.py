@@ -45,8 +45,8 @@ class Runner:
 
         args = {
             "n_steps" : 20,
-            "n_rows" : 3,
-            "n_cols" : 3,
+            "n_rows" : 4,
+            "n_cols" : 4,
             "horizon" : 1000
         }
 
