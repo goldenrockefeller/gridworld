@@ -9,7 +9,7 @@ import sys
 
 
 def run():
-    experiment_name = "MAG_4by4"
+    experiment_name = "MAG_3by4"
     n_stats_run_per_process = 1
 
 
