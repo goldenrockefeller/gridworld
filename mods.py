@@ -1,12 +1,6 @@
 from multiagent_gridworld import *
 
 
-def none(args):
-    args["critic"] = MidTrajCritic()
-    args["critic"].learning_rate_scheme = TrajMonteLearningRateScheme(args["critic"].core)
-    args["n_steps"] = 20
-    args["n_rows"] = 3
-    args["n_cols"] = 3
 
 
 def all_observation_actions(n_rows, n_cols):
