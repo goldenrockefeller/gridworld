@@ -10,7 +10,7 @@ import sys
 
 def run():
     experiment_name = "MAG_3by4"
-    n_stats_run_per_process = 1
+    n_stats_run_per_process = 20
 
 
     mods_to_mix = [
