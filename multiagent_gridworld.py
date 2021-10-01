@@ -13,7 +13,9 @@ import time
 
 #TODO
 """
-state and action, filter out None
+optimizer need to use correct jacobi + nesterov gradient descent
+diriclet distribution starts at 1 (uniform) and goes up
+need to use "correct" gradient descent
 """
 
 
