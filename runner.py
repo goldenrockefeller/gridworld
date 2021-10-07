@@ -44,7 +44,7 @@ class Runner:
         sys.stdout.flush()
 
         args = {
-            "n_steps" : 3000,
+            "n_steps" : 100,
             "n_rows" : 10,
             "n_cols" : 10,
             "horizon" : 10000
@@ -72,7 +72,7 @@ class Runner:
         # speed = 0.1
         # dist_horizon_factor = 0.1
 
-        n_epochs = 1000
+        n_epochs = 3000
         n_policies = 50
 
         kl_penalty_factor = 1.
