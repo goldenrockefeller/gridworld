@@ -44,10 +44,10 @@ class Runner:
         sys.stdout.flush()
 
         args = {
-            "n_steps" : 50,
+            "n_steps" : 3000,
             "n_rows" : 10,
             "n_cols" : 10,
-            "horizon" : 1000
+            "horizon" : 10000
         }
 
         for setup_func in self.setup_funcs:
@@ -58,8 +58,8 @@ class Runner:
         n_steps = args["n_steps"]
         n_rows = args["n_rows"]
         n_cols = args["n_cols"]
-        action_fail_rate = 0.1
-        time_cost = 0.01
+        action_fail_rate = 0.25
+        time_cost = 0.001
         reward_goal = 1.0
 
         domain = Domain(n_rows, n_cols, action_fail_rate, time_cost, reward_goal)
@@ -75,7 +75,7 @@ class Runner:
         n_epochs = 1000
         n_policies = 50
 
-        kl_penalty_factor = 100.
+        kl_penalty_factor = 1.
 
         dist_a = create_dist(n_rows, n_cols)
         dist_b = create_dist(n_rows, n_cols)

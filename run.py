@@ -9,12 +9,12 @@ import sys
 import cProfile, pstats
 
 def run():
-    experiment_name = "MAG_10by10"
+    experiment_name = "MAG_10by10_AA"
     n_stats_run_per_process = 4
 
 
     mods_to_mix = [
-        (noc,msc,imsc,qsc,asc,uqsc),
+        (noc,msc,imsc,qsc,asc,uqsc,mtc, imtc),
     ]
 
 
@@ -33,26 +33,26 @@ def run():
 
 if __name__ == '__main__':
 
-    r = Runner('test', (uqsc,))
-
-    # profiler = cProfile.Profile()
-    # profiler.enable()
-
-    r.new_run()
-
-    # profiler.disable()
-    # stats = pstats.Stats(profiler).sort_stats('tottime')
-    # stats.print_stats()
-
-    # n_processes = int(sys.argv[1])
-    # print(f"Number of processes: {n_processes}")
+    # r = Runner('test', (noc,))
     #
-    # processes = [Process(target = run) for _ in range(n_processes)]
+    # # profiler = cProfile.Profile()
+    # # profiler.enable()
     #
-    # for process in processes:
-    #     process.start()
-    #     sleep(2)
+    # r.new_run()
     #
-    #
-    # for process in processes:
-    #     process.join()
+    # # profiler.disable()
+    # # stats = pstats.Stats(profiler).sort_stats('tottime')
+    # # stats.print_stats()
+
+    n_processes = int(sys.argv[1])
+    print(f"Number of processes: {n_processes}")
+
+    processes = [Process(target = run) for _ in range(n_processes)]
+
+    for process in processes:
+        process.start()
+        sleep(2)
+
+
+    for process in processes:
+        process.join()

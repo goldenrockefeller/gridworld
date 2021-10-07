@@ -206,7 +206,7 @@ class Domain:
 
         for step_id in range(n_steps):
             actions = [None for i in range(n_agents)]
-            reward = -self.time_cost
+
             ending_early = False
 
             for agent_id in range(n_agents):
@@ -231,7 +231,15 @@ class Domain:
                     target_cell_given_action(posns[agent_id], resulting_action, n_rows, n_cols)
                 )
 
+            # manhattan_distance = 0
+            # for agent_id in range(n_agents):
+            #     manhattan_distance += (
+            #         abs(posns[agent_id][0] - self.goal[0])
+            #         + abs(posns[agent_id][1] - self.goal[1])
+            #     )
 
+
+            reward = -self.time_cost
             if all(pos == self.goal for pos in posns):
                 reward += self.reward_goal
                 ending_early = True
