@@ -41,7 +41,7 @@ def my_optimize(ref_dist, double kl_penalty_factor, list data):
     return np.asarray( dist)
 
 
-cdef double inv_psi(double x):
+cdef double inv_psi(double x) except *:
     cdef double s = x
     cdef double f
     cdef double prev_s = -inf
