@@ -44,9 +44,9 @@ class Runner:
         sys.stdout.flush()
 
         args = {
-            "n_steps" : 20,
-            "n_rows" : 3,
-            "n_cols" : 4,
+            "n_steps" : 50,
+            "n_rows" : 10,
+            "n_cols" : 10,
             "horizon" : 1000
         }
 
@@ -58,25 +58,30 @@ class Runner:
         n_steps = args["n_steps"]
         n_rows = args["n_rows"]
         n_cols = args["n_cols"]
-        action_fail_rate = 0.0
+        action_fail_rate = 0.1
         time_cost = 0.01
         reward_goal = 1.0
 
         domain = Domain(n_rows, n_cols, action_fail_rate, time_cost, reward_goal)
         domain.n_steps = n_steps
 
-        n_epochs = 10000
+        # n_epochs = 1000
+        # n_policies = 50
+        #
+        #
+        # speed = 0.1
+        # dist_horizon_factor = 0.1
+
+        n_epochs = 1000
         n_policies = 50
 
+        kl_penalty_factor = 100.
 
-        speed = 0.001
-        sustain = 0.99999
-        precision = 0.1
-        dist_a = create_dist(n_rows, n_cols, precision)
-        dist_b = create_dist(n_rows, n_cols, precision)
+        dist_a = create_dist(n_rows, n_cols)
+        dist_b = create_dist(n_rows, n_cols)
 
-        population_a = [Policy(n_rows, n_cols) for _ in range(n_policies)]
-        population_b = [Policy(n_rows, n_cols) for _ in range(n_policies)]
+        population_a = [Policy(dist_a) for _ in range(n_policies)]
+        population_b = [Policy(dist_b) for _ in range(n_policies)]
 
         n_epochs_elapsed = list(range(1, n_epochs + 1))
         n_training_episodes_elapsed = [n_epochs_elapsed[epoch_id] * n_policies for epoch_id in range(n_epochs)]
@@ -132,14 +137,14 @@ class Runner:
             critic_a = new_critic_a
             critic_b = new_critic_b
 
-            update_dist(dist_a, speed, sustain, phenotypes_a, n_rows, n_cols)
-            update_dist(dist_b, speed, sustain, phenotypes_b, n_rows, n_cols)
+            update_dist(dist_a, kl_penalty_factor, phenotypes_a)
+            update_dist(dist_b, kl_penalty_factor, phenotypes_b)
 
             self.critic_a = critic_a
             self.dist_a = dist_a
 
             phenotypes_a.sort(reverse = False, key = lambda phenotype : phenotype["fitness"])
-            for phenotype in phenotypes_a[0: 3 * len(phenotypes_b)//4]:
+            for phenotype in phenotypes_a[0: 3 * len(phenotypes_a)//4]:
                 policy = phenotype["policy"]
                 policy.mutate(dist_a)
             random.shuffle(phenotypes_a)

@@ -1,114 +1,91 @@
 from multiagent_gridworld import *
 
+def all_observation_actions():
+    for observation in all_observations():
+        for action in all_actions():
+            yield (observation, action)
 
-
-
-def all_observation_actions(n_rows, n_cols):
-    for observation in all_observations(n_rows, n_cols):
-        yield (observation, Action.LEFT)
-        yield (observation, Action.RIGHT)
-        yield (observation, Action.UP)
-        yield (observation, Action.DOWN)
-        yield (observation, Action.STAY)
-
-def traj_q_model(n_steps, n_rows, n_cols):
-    model = {observation_action: 0. for observation_action in all_observation_actions(n_rows, n_cols)}
+def traj_q_model(n_steps):
+    model = {observation_action: 0. for observation_action in all_observation_actions()}
     return model
 
-def traj_v_model(n_steps, n_rows, n_cols):
-    model = {observation: 0. for observation in all_observations(n_rows, n_cols)}
+def traj_v_model(n_steps):
+    model = {observation: 0. for observation in all_observations()}
     return model
 
 
-def stepped_q_model(n_steps, n_rows, n_cols):
-    model = {observation_action: [0.] * n_steps for observation_action in all_observation_actions(n_rows, n_cols)}
+def stepped_q_model(n_steps):
+    model = {observation_action: [0.] * n_steps for observation_action in all_observation_actions()}
     return model
 
-def stepped_v_model(n_steps, n_rows, n_cols):
-    model = {observation: [0.] * n_steps for observation in all_observations(n_rows, n_cols)}
+def stepped_v_model(n_steps):
+    model = {observation: [0.] * n_steps for observation in all_observations()}
     return model
+
 
 def noc(args):
     args["critic"] =  None
 
 def mtc(args):
     n_steps = args["n_steps"]
-    n_rows = args["n_rows"]
-    n_cols = args["n_cols"]
-    model = traj_q_model(n_steps, n_rows, n_cols)
+    model = traj_q_model(n_steps)
     args["critic"] = MidTrajCritic(model)
     args["critic"].learning_rate_scheme = TrajMonteLearningRateScheme(args["critic"].core)
     args["critic"].time_horizon = args["horizon"]
 
 def msc(args):
     n_steps = args["n_steps"]
-    n_rows = args["n_rows"]
-    n_cols = args["n_cols"]
-    model = stepped_q_model(n_steps, n_rows, n_cols)
+    model = stepped_q_model(n_steps)
     args["critic"] = MidSteppedCritic(model)
     args["critic"].learning_rate_scheme = SteppedMonteLearningRateScheme(args["critic"].core)
     args["critic"].time_horizon = args["horizon"]
 
 def imtc(args):
     n_steps = args["n_steps"]
-    n_rows = args["n_rows"]
-    n_cols = args["n_cols"]
-    model = traj_q_model(n_steps, n_rows, n_cols)
+    model = traj_q_model(n_steps)
     args["critic"] = InexactMidTrajCritic(model)
     args["critic"].learning_rate_scheme = TrajTabularLearningRateScheme(args["critic"].core)
     args["critic"].time_horizon = args["horizon"]
 
 def imsc(args):
     n_steps = args["n_steps"]
-    n_rows = args["n_rows"]
-    n_cols = args["n_cols"]
-    model = stepped_q_model(n_steps, n_rows, n_cols)
+    model = stepped_q_model(n_steps)
     args["critic"] = InexactMidSteppedCritic(model)
     args["critic"].learning_rate_scheme = SteppedTabularLearningRateScheme(args["critic"].core)
     args["critic"].time_horizon = args["horizon"]
 
 def qtc(args):
     n_steps = args["n_steps"]
-    n_rows = args["n_rows"]
-    n_cols = args["n_cols"]
-    model = traj_q_model(n_steps, n_rows, n_cols)
+    model = traj_q_model(n_steps)
     args["critic"] = QTrajCritic(model)
     args["critic"].learning_rate_scheme = TrajTabularLearningRateScheme(args["critic"].core)
     args["critic"].time_horizon = args["horizon"]
 
 def qsc(args):
     n_steps = args["n_steps"]
-    n_rows = args["n_rows"]
-    n_cols = args["n_cols"]
-    model = stepped_q_model(n_steps, n_rows, n_cols)
+    model = stepped_q_model(n_steps)
     args["critic"] = QSteppedCritic(model)
     args["critic"].learning_rate_scheme = SteppedTabularLearningRateScheme(args["critic"].core)
     args["critic"].time_horizon = args["horizon"]
 
 def biqtc(args):
     n_steps = args["n_steps"]
-    n_rows = args["n_rows"]
-    n_cols = args["n_cols"]
-    model = traj_q_model(n_steps, n_rows, n_cols)
+    model = traj_q_model(n_steps)
     args["critic"] = BiQTrajCritic(model)
     args["critic"].learning_rate_scheme = TrajTabularLearningRateScheme(args["critic"].core)
     args["critic"].time_horizon = args["horizon"]
 
 def biqsc(args):
     n_steps = args["n_steps"]
-    n_rows = args["n_rows"]
-    n_cols = args["n_cols"]
-    model = stepped_q_model(n_steps, n_rows, n_cols)
+    model = stepped_q_model(n_steps)
     args["critic"] = BiQSteppedCritic(model)
     args["critic"].learning_rate_scheme = SteppedTabularLearningRateScheme(args["critic"].core)
     args["critic"].time_horizon = args["horizon"]
 
 def uqtc(args):
     n_steps = args["n_steps"]
-    n_rows = args["n_rows"]
-    n_cols = args["n_cols"]
-    q_model = traj_q_model(n_steps, n_rows, n_cols)
-    u_model = traj_v_model(n_steps, n_rows, n_cols)
+    q_model = traj_q_model(n_steps)
+    u_model = traj_v_model(n_steps)
     args["critic"] = UqTrajCritic(q_model, u_model)
     args["critic"].u_critic.learning_rate_scheme = TrajTabularLearningRateScheme(args["critic"].u_critic.core, True)
     args["critic"].q_critic.learning_rate_scheme = TrajTabularLearningRateScheme(args["critic"].q_critic.core)
@@ -117,10 +94,8 @@ def uqtc(args):
 
 def uqsc(args):
     n_steps = args["n_steps"]
-    n_rows = args["n_rows"]
-    n_cols = args["n_cols"]
-    q_model = stepped_q_model(n_steps, n_rows, n_cols)
-    u_model = stepped_v_model(n_steps, n_rows, n_cols)
+    q_model = stepped_q_model(n_steps)
+    u_model = stepped_v_model(n_steps)
     args["critic"] = UqSteppedCritic(q_model, u_model)
     args["critic"].u_critic.learning_rate_scheme = SteppedTabularLearningRateScheme(args["critic"].u_critic.core, True)
     args["critic"].q_critic.learning_rate_scheme = SteppedTabularLearningRateScheme(args["critic"].q_critic.core)
@@ -129,10 +104,8 @@ def uqsc(args):
 
 def atc(args):
     n_steps = args["n_steps"]
-    n_rows = args["n_rows"]
-    n_cols = args["n_cols"]
-    q_model = traj_q_model(n_steps, n_rows, n_cols)
-    v_model = traj_v_model(n_steps, n_rows, n_cols)
+    q_model = traj_q_model(n_steps)
+    v_model = traj_v_model(n_steps)
     args["critic"] = ATrajCritic(q_model, v_model)
     args["critic"].v_critic.learning_rate_scheme = TrajTabularLearningRateScheme(args["critic"].v_critic.core, True)
     args["critic"].q_critic.learning_rate_scheme = TrajTabularLearningRateScheme(args["critic"].q_critic.core)
@@ -141,10 +114,8 @@ def atc(args):
 
 def asc(args):
     n_steps = args["n_steps"]
-    n_rows = args["n_rows"]
-    n_cols = args["n_cols"]
-    q_model = stepped_q_model(n_steps, n_rows, n_cols)
-    v_model = stepped_v_model(n_steps, n_rows, n_cols)
+    q_model = stepped_q_model(n_steps)
+    v_model = stepped_v_model(n_steps)
     args["critic"] = ASteppedCritic(q_model, v_model)
     args["critic"].v_critic.learning_rate_scheme = SteppedTabularLearningRateScheme(args["critic"].v_critic.core, True)
     args["critic"].q_critic.learning_rate_scheme = SteppedTabularLearningRateScheme(args["critic"].q_critic.core)
