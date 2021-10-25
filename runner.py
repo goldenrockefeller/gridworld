@@ -72,7 +72,7 @@ class Runner:
         # speed = 0.1
         # dist_horizon_factor = 0.1
 
-        n_epochs = 3000
+        n_epochs = 3
         n_policies = 50
 
         kl_penalty_factor = 1.

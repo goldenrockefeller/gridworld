@@ -12,7 +12,7 @@ import csv
 import time
 from critic import *
 import random
-from min_entropy_dist import my_optimize
+from min_entropy_dist import min_entropy_dist_exp_cg
 
 
 
@@ -339,7 +339,8 @@ def update_dist(dist, kl_penalty_factor, phenotypes):
             policy = selected_policies[policy_id]
             data[policy_id] = policy.action_probabilities[observation]
 
-        dist[observation] = my_optimize(dist[observation], kl_penalty_factor, data)
+        result = min_entropy_dist_exp_cg(dist[observation], kl_penalty_factor, data)
+        dist[observation] = np.exp(result.x)
 
 # def update_dist(dist, speed, sustain, phenotypes):
 #     phenotypes.sort(reverse = True, key = lambda phenotype : phenotype["fitness"])
