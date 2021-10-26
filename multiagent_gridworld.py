@@ -139,29 +139,110 @@ def possible_actions_for_cell(cell, n_rows, n_cols):
 #
 #     return observation
 
-def observation_cal(posns, goal, agent_id):
-    other_agent_id = 1 - agent_id # 0 or 1 if agent is 1 or 0, respectfully.
-
-    agent_diff_0 = posns[other_agent_id][0] -  posns[agent_id][0]
-    agent_diff_1 = posns[other_agent_id][1] -  posns[agent_id][1]
-    goal_diff_0 = goal[0] - posns[agent_id][0]
-    goal_diff_1 = goal[1] - posns[agent_id][1]
-
-    observation = (
-        int(agent_diff_0 > 0) - int(agent_diff_0 < 0),
-        int(agent_diff_1 > 0) - int(agent_diff_1 < 0),
-        int(goal_diff_0 > 0) - int(goal_diff_0 < 0),
-        int(goal_diff_1 > 0) - int(goal_diff_1 < 0)
+def manhattan_distance(pos_a, pos_b):
+    return (
+        abs(pos_a[0] - pos_b[0])
+        + abs(pos_a[1] - pos_b[1])
     )
+
+def closest_agent_ids(agent_id, prev_closest_agent_ids, posns):
+
+    if agent_id in prev_closest_agent_ids:
+        raise ValueError("agent_id can not be prev_closest_agent_ids")
+
+    sort_n = 3
+    new_closest_agent_ids = []
+    closest_distances = []
+
+    agent_pos = posns[agent_id]
+
+
+    # Go through each other agent.
+
+    for other_agent_id, other_agent_pos in enumerate(posns):
+        if other_agent_id != agent_id:
+            distance = manhattan_distance(agent_pos, other_agent_pos)
+            if len(new_closest_agent_ids) < sort_n + 1:
+                new_closest_agent_ids.append(other_agent_id)
+                closest_distances.append(distance)
+
+            # bubble sort (do not replace on tie)
+            for i in range(len(new_closest_agent_ids) - 1):
+                closest_id = len(new_closest_agent_ids) - 2 - i
+                if distance < closest_distances[closest_id]:
+                    closest_distances[closest_id + 1] = closest_distances[closest_id]
+                    new_closest_agent_ids[closest_id + 1] = new_closest_agent_ids[closest_id]
+                    closest_distances[closest_id] = distance
+                    new_closest_agent_ids[closest_id] = other_agent_id
+                else:
+                    break
+
+    # Try not to change the order of previously closest agents if there is a tie.
+
+    for other_agent_id, other_agent_pos in zip(reversed(prev_closest_agent_ids), reversed([posns[id] for id in prev_closest_agent_ids])):
+        distance = manhattan_distance(agent_pos, other_agent_pos)
+
+        # bubble sort (replace on ties)
+        for i in range(len(new_closest_agent_ids) - 1):
+            closest_id = len(new_closest_agent_ids) - 2 - i
+            if distance <= closest_distances[closest_id]:
+                closest_distances[closest_id + 1] = closest_distances[closest_id]
+                new_closest_agent_ids[closest_id + 1] = new_closest_agent_ids[closest_id]
+                closest_distances[closest_id] = distance
+                new_closest_agent_ids[closest_id] = other_agent_id
+            else:
+                break
+
+    return new_closest_agent_ids[:sort_n]
+
+
+def observation_cal(agent_id, closest_agent_ids, closest_goal_id, posns, prev_posns, goals, action, obs_fail_rate):
+    agent_pos = posns[agent_id]
+    prev_agent_pos = prev_positions[agent_id]
+
+
+    closest_agent_posns = (posns[closest_agent_ids[i]] for i in range(3))
+    prev_closest_agent_posns = (prev_posns[closest_agent_ids[0]] for i in range(3))
+
+    closest_goal_pos = goals[closest_goal_id]
+
+    closest_agent_flags = [0 for i in range(3)]
+    closest_goal_flag = 0
+
+    for i in range(3):
+        if random_uniform() < 1. - obs_fail_rate:
+            closest_agent_flags[i] = (
+                int(
+                    manhattan_distance(agent_pos, closest_agent_posns[i])
+                    < manhattan_distance(prev_agent_pos, prev_closest_agent_posns[i])
+                )
+            )
+        else:
+            closest_agent_flags[i] = int(random_uniform() < 0.5)
+
+
+
+    if random_uniform() < 1. - obs_fail_rate:
+        closest_goal_flag = (
+            int(
+                manhattan_distance(agent_pos, closest_goal_pos)
+                < manhattan_distance(prev_agent_pos, closest_goal_pos)
+            )
+        )
+    else:
+        closest_goal_flag = int(random_uniform() < 0.5)
+
+    observation = (action, *closest_agent_flags, closest_goal_flag)
 
     return observation
 
 def all_observations():
-    for agent_diff_0 in range(-1, 2):
-        for agent_diff_1 in range(-1, 2):
-            for goal_diff_0 in range(-1, 2):
-                for goal_diff_1 in range(-1, 2):
-                    yield (agent_diff_0, agent_diff_1, goal_diff_0, goal_diff_1)
+    for action in all_actions():
+        for closest_agent_flag_0 in (0, 1):
+            for closest_agent_flag_1 in (0, 1):
+                for closest_agent_flag_2 in (0, 1):
+                    for closest_goal_flag in (0, 1):
+                        yield (action, closest_agent_flag_0, closest_agent_flag_1, closest_agent_flag_2, closest_goal_flag)
 
 def all_actions():
     yield Action.LEFT

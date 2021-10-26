@@ -44,6 +44,7 @@ class Runner:
         sys.stdout.flush()
 
         args = {
+            "n_agents" : 2,
             "n_steps" : 100,
             "n_rows" : 10,
             "n_cols" : 10,
@@ -53,8 +54,11 @@ class Runner:
         for setup_func in self.setup_funcs:
             setup_func(args)
 
-        critic_a = args["critic"]
-        critic_b = critic_a.copy() if critic_a is not None else None
+        critic_base = args["critic"]
+
+        n_agents = args["n_agents"]
+
+        critics = [(critic_base.copy() if critic_base is not None else None) for i in range(n_agents)]
         n_steps = args["n_steps"]
         n_rows = args["n_rows"]
         n_cols = args["n_cols"]
@@ -62,8 +66,10 @@ class Runner:
         time_cost = 0.001
         reward_goal = 1.0
 
+
         domain = Domain(n_rows, n_cols, action_fail_rate, time_cost, reward_goal)
         domain.n_steps = n_steps
+        domain.n_agents = n_agents
 
         # n_epochs = 1000
         # n_policies = 50
@@ -77,94 +83,76 @@ class Runner:
 
         kl_penalty_factor = 1.
 
-        dist_a = create_dist(n_rows, n_cols)
-        dist_b = create_dist(n_rows, n_cols)
+        dists = [create_dist(n_rows, n_cols) for _ in range(n_agents)]
 
-        population_a = [Policy(dist_a) for _ in range(n_policies)]
-        population_b = [Policy(dist_b) for _ in range(n_policies)]
+        populations = [[Policy(dists[i]) for _ in range(n_policies)] for i in range(n_agents)]
+
 
         n_epochs_elapsed = list(range(1, n_epochs + 1))
         n_training_episodes_elapsed = [n_epochs_elapsed[epoch_id] * n_policies for epoch_id in range(n_epochs)]
         n_training_steps_elapsed = [n_epochs_elapsed[epoch_id] * n_steps * n_policies for epoch_id in range(n_epochs)]
         scores = []
         expected_returns = []
-        critic_a_evals = []
+        critic_a_evals =[]
         critic_a_score_losses = []
 
 
         for epoch_id in range(n_epochs):
 
-            phenotypes_a = phenotypes_from_population(population_a)
-            phenotypes_b = phenotypes_from_population(population_b)
+            phenotypes_x_agent = [phenotypes_from_population(populations[i]) for i in range(n_agents)]
 
-            new_critic_a = critic_a.copy() if critic_a is not None else None
-            new_critic_b = critic_b.copy() if critic_b is not None else None
+            new_critics = [(critics[i].copy() if critics[i] is not None else None) for i in range(n_agents)]
 
-            for phenotype_id in range(len(phenotypes_a)):
-                phenotype_a = phenotypes_a[phenotype_id]
-                phenotype_b = phenotypes_b[phenotype_id]
+            for phenotype_id in range(len(phenotypes_x_agent[0])):
 
-                policy_a = phenotype_a["policy"]
-                policy_b = phenotype_b["policy"]
+                phenotypes = [phenotypes_x_agent[agent_id][phenotype_id] for agent_id in range(n_agents)]
 
-                trajectories = domain.execute([policy_a, policy_b])
+                policies = [phenotypes[agent_id]["policy"] for agent_id in range(n_agents)]
 
-                observations_a = trajectories[0].observations
-                actions_a = trajectories[0].actions
-                rewards_a = trajectories[0].rewards
-                if critic_a is not None:
-                    fitness_a = critic_a.eval(observations_a, actions_a)
-                else:
-                    fitness_a = sum(rewards_a)
-                if new_critic_a is not None:
-                    new_critic_a.update(observations_a, actions_a, rewards_a)
-                phenotype_a["fitness"] = fitness_a
-                phenotype_a["trajectory"] = trajectories[0]
+                trajectories = domain.execute(policies)
 
-                observations_b = trajectories[1].observations
-                actions_b = trajectories[1].actions
-                rewards_b = trajectories[1].rewards
-                if critic_b is not None:
-                    fitness_b = critic_b.eval(observations_b, actions_b)
-                else:
-                    fitness_b = sum(rewards_b)
-                if new_critic_b is not None:
-                    new_critic_b.update(observations_b, actions_b, rewards_b)
-                phenotype_b["fitness"] = fitness_b
-                phenotype_b["trajectory"] = trajectories[1]
+                for agent_id in range(n_agents):
+                    observations = trajectories[agent_id].observations
+                    actions = trajectories[agent_id].actions
+                    rewards = trajectories[agent_id].rewards
+
+                    if critics[agent_id] is not None:
+                        fitness = critics[agent_id].eval(observations, actions)
+                    else:
+                        fitness = sum(rewards)
+                    if new_critics[agent_id] is not None:
+                        new_critics[agent_id].update(observations, actions, rewards)
+                    phenotypes[agent_id]["fitness"] = fitness
+                    phenotypes[agent_id]["trajectory"] = trajectories[agent_id]
+
+            critics = new_critics
+
+            for dist, phenotypes in zip(dists, phenotypes_x_agent):
+                update_dist(dist, kl_penalty_factor, phenotypes)
+
+                phenotypes.sort(reverse = False, key = lambda phenotype : phenotype["fitness"])
+                for phenotype in phenotypes[0: 3 * len(phenotypes)//4]:
+                    policy = phenotype["policy"]
+                    policy.mutate(dist)
+                random.shuffle(phenotypes)
 
 
-            critic_a = new_critic_a
-            critic_b = new_critic_b
-
-            update_dist(dist_a, kl_penalty_factor, phenotypes_a)
-            update_dist(dist_b, kl_penalty_factor, phenotypes_b)
-
-            self.critic_a = critic_a
-            self.dist_a = dist_a
-
-            phenotypes_a.sort(reverse = False, key = lambda phenotype : phenotype["fitness"])
-            for phenotype in phenotypes_a[0: 3 * len(phenotypes_a)//4]:
-                policy = phenotype["policy"]
-                policy.mutate(dist_a)
-            random.shuffle(phenotypes_a)
-
-            phenotypes_b.sort(reverse = False, key = lambda phenotype : phenotype["fitness"])
-            for phenotype in phenotypes_b[0: 3 * len(phenotypes_b)//4]:
-                policy = phenotype["policy"]
-                policy.mutate(dist_b)
-            random.shuffle(phenotypes_b)
+            self.critics = critics
+            self.dists = dists
 
 
-            candidate_policy_a = population_a[0]
-            candidate_policy_b = population_b[0]
-            trajectories = domain.execute([candidate_policy_a, candidate_policy_b])
+
+
+            candidate_policies = [populations[agent_id][0] for agent_id in range(n_agents)]
+            trajectories = domain.execute(candidate_policies)
             print(f"Score: {sum(trajectories[0].rewards)}, Epoch: {epoch_id}")
 
 
             score = sum(trajectories[0].rewards)
-            observations = list(filter(lambda x: x is not None, trajectories[0].observations))
-            actions = list(filter(lambda x: x is not None, trajectories[0].actions))
+            observations = trajectories[0].observations
+            actions = trajectories[0].actions
+
+            critic_a = critics[0]
             if critic_a is not None:
                 critic_a_eval = critic_a.eval(observations, actions)
                 critic_a_score_loss = 0.5 * (critic_a_eval - score) ** 2

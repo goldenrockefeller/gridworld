@@ -6,10 +6,6 @@ from numpy.random import dirichlet
 from numpy import finfo
 import numpy as np
 
-import pyximport; pyximport.install()
-
-from compiled import *
-
 
 tiny = np.finfo(np.float64).tiny
 
