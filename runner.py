@@ -44,11 +44,10 @@ class Runner:
         sys.stdout.flush()
 
         args = {
-            "n_agents" : 2,
             "n_steps" : 100,
-            "n_rows" : 10,
-            "n_cols" : 10,
-            "horizon" : 10000
+            "n_rows" : 100,
+            "n_cols" : 100,
+            "horizon" : 100
         }
 
         for setup_func in self.setup_funcs:
@@ -56,20 +55,18 @@ class Runner:
 
         critic_base = args["critic"]
 
-        n_agents = args["n_agents"]
+        n_agents = 10
+        n_goals = 30
+        n_req = 2
+
 
         critics = [(critic_base.copy() if critic_base is not None else None) for i in range(n_agents)]
         n_steps = args["n_steps"]
         n_rows = args["n_rows"]
         n_cols = args["n_cols"]
-        action_fail_rate = 0.25
-        time_cost = 0.001
-        reward_goal = 1.0
 
+        domain = Domain(n_rows, n_cols, n_steps, n_agents, n_req, n_goals)
 
-        domain = Domain(n_rows, n_cols, action_fail_rate, time_cost, reward_goal)
-        domain.n_steps = n_steps
-        domain.n_agents = n_agents
 
         # n_epochs = 1000
         # n_policies = 50
@@ -78,7 +75,7 @@ class Runner:
         # speed = 0.1
         # dist_horizon_factor = 0.1
 
-        n_epochs = 3
+        n_epochs = 1000
         n_policies = 50
 
         kl_penalty_factor = 1.
@@ -109,7 +106,7 @@ class Runner:
 
                 policies = [phenotypes[agent_id]["policy"] for agent_id in range(n_agents)]
 
-                trajectories = domain.execute(policies)
+                trajectories, records = domain.execute(policies)
 
                 for agent_id in range(n_agents):
                     observations = trajectories[agent_id].observations
@@ -144,7 +141,7 @@ class Runner:
 
 
             candidate_policies = [populations[agent_id][0] for agent_id in range(n_agents)]
-            trajectories = domain.execute(candidate_policies)
+            trajectories, records = domain.execute(candidate_policies)
             print(f"Score: {sum(trajectories[0].rewards)}, Epoch: {epoch_id}")
 
 
@@ -166,24 +163,25 @@ class Runner:
             # print(critic.learning_rate_scheme.denoms)
         # end for epoch in range(n_epochs):
 
-        save_filename = (
+        score_filename = (
             os.path.join(
                 "log",
                 self.experiment_name,
                 self.trial_name,
-                f"record_{datetime_str}.csv"
+                "score",
+                f"score_{datetime_str}.csv"
             )
         )
 
         # Create File Directory if it doesn't exist
-        if not os.path.exists(os.path.dirname(save_filename)):
+        if not os.path.exists(os.path.dirname(score_filename)):
             try:
-                os.makedirs(os.path.dirname(save_filename))
+                os.makedirs(os.path.dirname(score_filename))
             except OSError as exc: # Guard against race condition
                 if exc.errno != errno.EEXIST:
                     raise
 
-        with open(save_filename, 'w', newline='') as save_file:
+        with open(score_filename, 'w', newline='') as save_file:
             writer = csv.writer(save_file)
 
             writer.writerow(['n_epochs_elapsed'] + n_epochs_elapsed)
@@ -194,6 +192,46 @@ class Runner:
             writer.writerow(['critic_a_evals'] + critic_a_evals)
             writer.writerow(['critic_a_score_losses'] + critic_a_score_losses)
 
+        records_filename = (
+            os.path.join(
+                "log",
+                self.experiment_name,
+                self.trial_name,
+                "records",
+                f"records_{datetime_str}.csv"
+            )
+        )
+
+        # Create File Directory if it doesn't exist
+        if not os.path.exists(os.path.dirname(records_filename)):
+            try:
+                os.makedirs(os.path.dirname(records_filename))
+            except OSError as exc: # Guard against race condition
+                if exc.errno != errno.EEXIST:
+                    raise
+
+        with open(records_filename, 'w', newline='') as save_file:
+            writer = csv.writer(save_file)
+
+            writer.writerow(['n_rows', records['n_rows']])
+            writer.writerow(['n_cols', records['n_cols']])
+            writer.writerow(['n_steps', records['n_steps']])
+            writer.writerow(['n_goals', records['n_goals']])
+            writer.writerow(['n_agents', records['n_agents']])
+
+            for goal_id, goal_record in enumerate(records['goal_records']):
+                writer.writerow([])
+                writer.writerow(["Goal", goal_id])
+                writer.writerow(["rows"] + goal_record.rows)
+                writer.writerow(["cols"] + goal_record.cols)
+
+            for agent_id, agent_record in enumerate(records['agent_records']):
+                writer.writerow([])
+                writer.writerow(["Agent", agent_id])
+                writer.writerow(["rows"] + agent_record.rows)
+                writer.writerow(["cols"] + agent_record.cols)
+                writer.writerow(["row_directions"] + agent_record.row_directions)
+                writer.writerow(["col_directions"] + agent_record.col_directions)
 
         self.stat_runs_completed += 1
 
