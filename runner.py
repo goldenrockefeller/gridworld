@@ -57,7 +57,7 @@ class Runner:
 
         n_agents = 4
         n_goals = 4
-        n_req = 1
+        n_req = 2
 
 
         critics = [(critic_base.copy() if critic_base is not None else None) for i in range(n_agents)]
@@ -78,7 +78,7 @@ class Runner:
         n_epochs = 3000
         n_policies = 50
 
-        kl_penalty_factor = 10.
+        kl_penalty_factor = 1.
 
         dists = [create_dist(n_rows, n_cols) for _ in range(n_agents)]
 
@@ -167,8 +167,8 @@ class Runner:
             os.path.join(
                 "log",
                 self.experiment_name,
-                self.trial_name,
                 "score",
+                self.trial_name,
                 f"score_{datetime_str}.csv"
             )
         )
@@ -196,8 +196,8 @@ class Runner:
             os.path.join(
                 "log",
                 self.experiment_name,
-                self.trial_name,
                 "records",
+                self.trial_name,
                 f"records_{datetime_str}.csv"
             )
         )
