@@ -1,4 +1,4 @@
-from scipy.special import gamma, psi, polygamma, zeta
+from scipy.special import gamma, psi, polygamma, zeta, loggamma
 from numpy import log
 from scipy import optimize
 from numpy import array, zeros, inf, exp, minimum, maximum, sum,  abs, where, isfinite
@@ -13,8 +13,8 @@ tiny = np.finfo(np.float64).tiny
 
 def dist_entropy(dist):
     return (
-        - log(gamma(dist.sum()))
-        + log(gamma(dist)).sum()
+        - loggamma(dist.sum())
+        + loggamma(dist).sum()
         + (dist.sum()-len(dist)) * psi(dist.sum())
         - ( (dist - 1.) * psi(dist) ).sum()
     )
@@ -26,14 +26,14 @@ def dist_to_dist_entropy(ref_dist, dist):
     ref_dist_sum = ref_dist.sum()
     dist_sum = dist.sum()
 
-    if not np.isfinite(log(gamma(ref_dist_sum))).all():
-        print("hi")
+    if not np.isfinite(loggamma(ref_dist_sum)).all():
+        raise ValueError("loggamma(ref_dist_sum)", ref_dist_sum)
 
     return (
-        log(gamma(ref_dist_sum))
-        - log(gamma(ref_dist)).sum()
-        - log(gamma(dist_sum))
-        + log(gamma(dist)).sum()
+        loggamma(ref_dist_sum)
+        - loggamma(ref_dist).sum()
+        - loggamma(dist_sum)
+        + loggamma(dist).sum()
         + ( (ref_dist - dist) * (psi(ref_dist) - psi(ref_dist_sum)) ).sum()
     )
 
@@ -43,8 +43,8 @@ def data_to_dist_entropy(data, dist):
 
 def data_to_dist_entropy_pk(log_pk, dist):
     return (
-        log(gamma(dist)).sum()
-        - log(gamma(dist.sum()))
+        loggamma(dist).sum()
+        - loggamma(dist.sum())
         - ((dist - 1.)*log_pk).sum()
     )
 
@@ -52,8 +52,8 @@ def datum_to_dist_entropy(datum, dist):
     # from https://bariskurt.com/kullback-leibler-divergence-between-two-dirichlet-and-beta-distributions/
 
     return (
-        log(gamma(dist)).sum()
-        - log(gamma(dist.sum()))
+        loggamma(dist).sum()
+        - loggamma(dist.sum())
         - ((dist - 1.)*log(datum)).sum()
     )
 
