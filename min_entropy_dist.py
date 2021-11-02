@@ -26,6 +26,8 @@ def dist_to_dist_entropy(ref_dist, dist):
     ref_dist_sum = ref_dist.sum()
     dist_sum = dist.sum()
 
+    if not np.isfinite(log(gamma(ref_dist_sum))).all():
+        print("hi")
 
     return (
         log(gamma(ref_dist_sum))
@@ -94,6 +96,7 @@ def exp_scorer_pk(ref_dist, kl_penalty_factor, data):
 
     def score(ln_dist):
         dist = np.exp(ln_dist)
+
         return data_to_dist_entropy_pk(log_pk, dist) + kl_penalty_factor * dist_to_dist_entropy(ref_dist, dist)
     return score
 

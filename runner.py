@@ -45,9 +45,9 @@ class Runner:
 
         args = {
             "n_steps" : 100,
-            "n_rows" : 100,
-            "n_cols" : 100,
-            "horizon" : 100
+            "n_rows" : 10,
+            "n_cols" : 10,
+            "horizon" : 1000
         }
 
         for setup_func in self.setup_funcs:
@@ -55,9 +55,9 @@ class Runner:
 
         critic_base = args["critic"]
 
-        n_agents = 10
-        n_goals = 30
-        n_req = 2
+        n_agents = 4
+        n_goals = 4
+        n_req = 1
 
 
         critics = [(critic_base.copy() if critic_base is not None else None) for i in range(n_agents)]
@@ -75,10 +75,10 @@ class Runner:
         # speed = 0.1
         # dist_horizon_factor = 0.1
 
-        n_epochs = 1000
+        n_epochs = 3000
         n_policies = 50
 
-        kl_penalty_factor = 1.
+        kl_penalty_factor = 10.
 
         dists = [create_dist(n_rows, n_cols) for _ in range(n_agents)]
 

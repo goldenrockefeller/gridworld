@@ -12,7 +12,7 @@ import csv
 import time
 from critic import *
 import random
-from min_entropy_dist import min_entropy_dist_exp_cg
+from min_entropy_dist import min_entropy_dist_exp_cg, min_entropy_dist_cg
 
 cdef class Pos:
     cdef public int row
@@ -130,12 +130,11 @@ cpdef tuple observation(Agent agent):
     cdef Pos prev_agent_pos = agent.prev_pos
     cdef Agent other_agent
 
-
     cdef int agent_action = agent.action
 
     cdef double obs_fail_rate = agent.obs_fail_rate
 
-    cdef list closest_agent_posns = [other_agent.pos for other_agent in agent.closest_agents]
+    # cdef list closest_agent_posns = [other_agent.pos for other_agent in agent.closest_agents]
     cdef list prev_closest_agent_posns = [other_agent.prev_pos for other_agent in agent.closest_agents]
     cdef Pos closest_goal = agent.closest_goal
 
@@ -146,7 +145,7 @@ cpdef tuple observation(Agent agent):
         if random_uniform() < 1. - obs_fail_rate:
             closest_agent_flags[i] = (
                 int(
-                    manhattan_distance(agent_pos, closest_agent_posns[i])
+                    manhattan_distance(agent_pos, prev_closest_agent_posns[i])
                     < manhattan_distance(prev_agent_pos, prev_closest_agent_posns[i])
                 )
             )
@@ -308,7 +307,7 @@ def all_actions():
     yield Action.DOWN
     yield Action.STAY
 
-def get_random_from_list(l):
+def random_elem_from_list(l):
     r = random_uniform()
     return l[int(r*len(l))]
 
@@ -341,9 +340,9 @@ cdef class Agent:
     cdef public double action_fr_B
 
     def __init__(self, random_pos):
-        self.obs_fr_A = 0.1
+        self.obs_fr_A = 0.
         self.obs_fr_B = 1.
-        self.action_fr_A = 0.1
+        self.action_fr_A = 0.
         self.action_fr_B = 1.
 
         obs_fr_A = self.obs_fr_A
@@ -404,7 +403,7 @@ class Domain:
 
         cdef Agent agent
 
-        agents = [Agent(random_pos(n_rows, n_cols)) for i in range(n_agents)]
+        agents = [Agent(Pos(n_rows//2, n_cols//2)) for i in range(n_agents)]
         goals = [random_pos(n_rows, n_cols) for i in range(n_goals)]
 
         trajectories = [Trajectory(n_steps) for i in range(n_agents)]
@@ -455,7 +454,7 @@ class Domain:
                 trajectory.actions[step_id] = action
 
                 if random_uniform() < agent.action_fail_rate:
-                    resulting_action = get_random_from_list(possible_actions)
+                    resulting_action = random_elem_from_list(possible_actions)
                 else:
                     resulting_action = action
 
