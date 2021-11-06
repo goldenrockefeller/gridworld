@@ -49,18 +49,30 @@ cpdef Pos closest_goal(Agent agent, list goals):
 
     cdef Pos the_closest_goal = agent.closest_goal
     cdef Pos pos = agent.pos
+    cdef Pos other_pos = agent.closest_agents[0].pos
 
 
     if the_closest_goal is None:
         the_closest_goal  = goals[0]
 
-    cdef int closest_distance = manhattan_distance(pos, the_closest_goal)
+    cdef int closest_distance = (
+        max(
+            manhattan_distance(pos, the_closest_goal),
+            manhattan_distance(other_pos, the_closest_goal)
+        )
+    )
 
     cdef Pos goal
     cdef int distance
 
     for goal in goals:
-        distance = manhattan_distance(pos, goal)
+        distance = (
+            max(
+                manhattan_distance(pos, goal),
+                manhattan_distance(other_pos, goal)
+            )
+        )
+
         if distance < closest_distance:
             closest_distance = distance
             the_closest_goal  = goal
