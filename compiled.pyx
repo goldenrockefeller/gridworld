@@ -50,12 +50,12 @@ cpdef Pos closest_goal(Agent agent, list goals):
     cdef Pos the_closest_goal = agent.closest_goal
     cdef Pos pos = agent.pos
 
+    cdef Pos other_pos
 
-    cdef Agent closest_agent = agent.closest_agents[0]
-    if closest_agent is None:
-        closest_agent = agent
-
-    cdef Pos other_pos = closest_agent.pos
+    if agent.closest_agents is not None:
+        other_pos = agent.closest_agents[0].pos
+    else:
+        other_pos = pos
 
 
     if the_closest_goal is None:
