@@ -78,7 +78,7 @@ class Runner:
         n_epochs = 3000
         n_policies = 50
 
-        kl_penalty_factor = 1.
+        kl_penalty_factor = 10.
 
         dists = [create_dist(n_rows, n_cols) for _ in range(n_agents)]
 
