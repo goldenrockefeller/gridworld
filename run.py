@@ -9,12 +9,12 @@ import sys
 import cProfile, pstats
 
 def run():
-    experiment_name = "MAG_TestA5"
+    experiment_name = "MAG_TestA6_horizon_100"
     n_stats_run_per_process = 1
 
 
     mods_to_mix = [
-        (imtc,),
+        (imtc, uqtc, uqsc, imsc, noc, asc ,qsc),
     ]
 
 
