@@ -53,36 +53,32 @@ class Runner:
         for setup_func in self.setup_funcs:
             setup_func(args)
 
-        critic_base = args["critic"]
+        moving_critic_base = args["moving_critic"]
+        targetting_critic_base = args["targetting_critic"]
 
-        n_agents = 4
+        n_robots = 4
         n_goals = 4
         n_req = 2
 
 
-        critics = [(critic_base.copy() if critic_base is not None else None) for i in range(n_agents)]
+        moving_critics = [(moving_critic_base.copy() if moving_critic_base is not None else None) for i in range(n_robots)]
+        targetting_critics = [(targetting_critic_base.copy() if targetting_critic_base is not None else None) for i in range(n_robots)]
         n_steps = args["n_steps"]
         n_rows = args["n_rows"]
         n_cols = args["n_cols"]
 
-        domain = Domain(n_rows, n_cols, n_steps, n_agents, n_req, n_goals)
-
-
-        # n_epochs = 1000
-        # n_policies = 50
-        #
-        #
-        # speed = 0.1
-        # dist_horizon_factor = 0.1
+        domain = Domain(n_rows, n_cols, n_steps, n_robots, n_req, n_goals)
 
         n_epochs = 3000
         n_policies = 50
 
         kl_penalty_factor = 10.
 
-        dists = [create_dist(n_rows, n_cols) for _ in range(n_agents)]
+        moving_dists = [create_moving_dist() for _ in range(n_robots)]
+        moving_populations = [[MovingPolicy(moving_dists[i]) for _ in range(n_policies)] for i in range(n_robots)]
 
-        populations = [[Policy(dists[i]) for _ in range(n_policies)] for i in range(n_agents)]
+        targetting_dists = [create_targetting_dist() for _ in range(n_robots)]
+        targetting_populations = [[TargettingPolicy(targetting_dists[i]) for _ in range(n_policies)] for i in range(n_robots)]
 
 
         n_epochs_elapsed = list(range(1, n_epochs + 1))
@@ -96,35 +92,68 @@ class Runner:
 
         for epoch_id in range(n_epochs):
 
-            phenotypes_x_agent = [phenotypes_from_population(populations[i]) for i in range(n_agents)]
+            for population in moving_populations:
+                random.shuffle(population)
 
-            new_critics = [(critics[i].copy() if critics[i] is not None else None) for i in range(n_agents)]
+            for population in targetting_populations:
+                random.shuffle(population)
 
-            for phenotype_id in range(len(phenotypes_x_agent[0])):
+            moving_phenotypes_x_robot = [phenotypes_from_population(moving_populations[i]) for i in range(n_robots)]
+            targetting_phenotypes_x_robot = [phenotypes_from_population(targetting_populations[i]) for i in range(n_robots)]
 
-                phenotypes = [phenotypes_x_agent[agent_id][phenotype_id] for agent_id in range(n_agents)]
+            new_moving_critics = [(moving_critics[i].copy() if moving_critics[i] is not None else None) for i in range(n_robots)]
+            new_targetting_critics = [(targetting_critics[i].copy() if targetting_critics[i] is not None else None) for i in range(n_robots)]
 
-                policies = [phenotypes[agent_id]["policy"] for agent_id in range(n_agents)]
+            for phenotype_id in range(len(moving_phenotypes_x_robot[0])):
 
-                trajectories, records = domain.execute(policies)
+                moving_phenotypes = [moving_phenotypes_x_robot[robot_id][phenotype_id] for robot_id in range(n_robots)]
+                targetting_phenotypes = [targetting_phenotypes_x_robot[robot_id][phenotype_id] for robot_id in range(n_robots)]
 
-                for agent_id in range(n_agents):
-                    observations = trajectories[agent_id].observations
-                    actions = trajectories[agent_id].actions
-                    rewards = trajectories[agent_id].rewards
+                moving_policies = [moving_phenotypes[robot_id]["policy"] for robot_id in range(n_robots)]
+                targetting_policies = [targetting_phenotypes[robot_id]["policy"] for robot_id in range(n_robots)]
 
-                    if critics[agent_id] is not None:
-                        fitness = critics[agent_id].eval(observations, actions)
+                trajectories, records = domain.execute(moving_policies, targetting_policies)
+
+                for robot_id in range(n_robots):
+                    observations = trajectories[robot_id].observations
+                    moving_actions = trajectories[robot_id].moving_actions
+                    target_types = trajectories[robot_id].target_types
+                    rewards = trajectories[robot_id].rewards
+
+                    if moving_critics[robot_id] is not None:
+                        fitness = moving_critics[robot_id].eval(observations, moving_actions)
                     else:
                         fitness = sum(rewards)
-                    if new_critics[agent_id] is not None:
-                        new_critics[agent_id].update(observations, actions, rewards)
-                    phenotypes[agent_id]["fitness"] = fitness
-                    phenotypes[agent_id]["trajectory"] = trajectories[agent_id]
 
-            critics = new_critics
+                    if new_moving_critics[robot_id] is not None:
+                        new_moving_critics[robot_id].update(observations, moving_actions, rewards)
 
-            for dist, phenotypes in zip(dists, phenotypes_x_agent):
+                    moving_phenotypes[robot_id]["fitness"] = fitness
+
+                    if targetting_critics[robot_id] is not None:
+                        fitness = targetting_critics[robot_id].eval(observations, target_types)
+                    else:
+                        fitness = sum(rewards)
+
+                    if new_targetting_critics[robot_id] is not None:
+                        new_targetting_critics[robot_id].update(observations, target_types, rewards)
+
+                    targetting_phenotypes[robot_id]["fitness"] = fitness
+
+
+            moving_critics = new_moving_critics
+            targetting_critics = new_targetting_critics
+
+            for dist, phenotypes in zip(moving_dists, moving_phenotypes_x_robot):
+                update_dist(dist, kl_penalty_factor, phenotypes)
+
+                phenotypes.sort(reverse = False, key = lambda phenotype : phenotype["fitness"])
+                for phenotype in phenotypes[0: 3 * len(phenotypes)//4]:
+                    policy = phenotype["policy"]
+                    policy.mutate(dist)
+                random.shuffle(phenotypes)
+
+            for dist, phenotypes in zip(targetting_dists, targetting_phenotypes_x_robot):
                 update_dist(dist, kl_penalty_factor, phenotypes)
 
                 phenotypes.sort(reverse = False, key = lambda phenotype : phenotype["fitness"])
@@ -134,29 +163,28 @@ class Runner:
                 random.shuffle(phenotypes)
 
 
-            self.critics = critics
-            self.dists = dists
+            self.moving_critics = moving_critics
+            self.moving_dists = moving_dists
 
 
-
-
-            candidate_policies = [populations[agent_id][0] for agent_id in range(n_agents)]
-            trajectories, records = domain.execute(candidate_policies)
+            candidate_moving_policies = [moving_populations[robot_id][0] for robot_id in range(n_robots)]
+            candidate_targetting_policies = [targetting_populations[robot_id][0] for robot_id in range(n_robots)]
+            trajectories, records = domain.execute(candidate_moving_policies, candidate_targetting_policies)
             print(f"Score: {sum(trajectories[0].rewards)}, Epoch: {epoch_id}")
 
 
             score = sum(trajectories[0].rewards)
             observations = trajectories[0].observations
-            actions = trajectories[0].actions
+            moving_actions = trajectories[0].moving_actions
 
-            critic_a = critics[0]
+            critic_a = moving_critics[0]
             if critic_a is not None:
-                critic_a_eval = critic_a.eval(observations, actions)
+                critic_a_eval = critic_a.eval(observations, moving_actions)
                 critic_a_score_loss = 0.5 * (critic_a_eval - score) ** 2
 
             scores.append(score)
             if critic_a is not None:
-                critic_a_evals.append(  critic_a.eval(observations, actions) )
+                critic_a_evals.append(  critic_a.eval(observations, moving_actions) )
                 critic_a_score_losses.append( critic_a_score_loss )
 
 
@@ -217,7 +245,7 @@ class Runner:
             writer.writerow(['n_cols', records['n_cols']])
             writer.writerow(['n_steps', records['n_steps']])
             writer.writerow(['n_goals', records['n_goals']])
-            writer.writerow(['n_agents', records['n_agents']])
+            writer.writerow(['n_robots', records['n_robots']])
 
             for goal_id, goal_record in enumerate(records['goal_records']):
                 writer.writerow([])
@@ -225,13 +253,13 @@ class Runner:
                 writer.writerow(["rows"] + goal_record.rows)
                 writer.writerow(["cols"] + goal_record.cols)
 
-            for agent_id, agent_record in enumerate(records['agent_records']):
+            for robot_id, robot_record in enumerate(records['robot_records']):
                 writer.writerow([])
-                writer.writerow(["Agent", agent_id])
-                writer.writerow(["rows"] + agent_record.rows)
-                writer.writerow(["cols"] + agent_record.cols)
-                writer.writerow(["row_directions"] + agent_record.row_directions)
-                writer.writerow(["col_directions"] + agent_record.col_directions)
+                writer.writerow(["Robot", robot_id])
+                writer.writerow(["rows"] + robot_record.rows)
+                writer.writerow(["cols"] + robot_record.cols)
+                writer.writerow(["row_directions"] + robot_record.row_directions)
+                writer.writerow(["col_directions"] + robot_record.col_directions)
 
         self.stat_runs_completed += 1
 
