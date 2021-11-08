@@ -47,7 +47,7 @@ class Runner:
             "n_steps" : 100,
             "n_rows" : 10,
             "n_cols" : 10,
-            "horizon" : 10000
+            "horizon" : 1000
         }
 
         for setup_func in self.setup_funcs:

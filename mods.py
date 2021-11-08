@@ -40,6 +40,13 @@ def msc(args):
     args["critic"].learning_rate_scheme = SteppedMonteLearningRateScheme(args["critic"].core)
     args["critic"].time_horizon = args["horizon"]
 
+def mhc(args):
+    n_steps = args["n_steps"]
+    model = stepped_q_model(n_steps)
+    args["critic"] = MidHybridCritic(model)
+    args["critic"].learning_rate_scheme = SteppedMonteLearningRateScheme(args["critic"].stepped_core)
+    args["critic"].time_horizon = args["horizon"]
+
 def imtc(args):
     n_steps = args["n_steps"]
     model = traj_q_model(n_steps)
@@ -52,6 +59,13 @@ def imsc(args):
     model = stepped_q_model(n_steps)
     args["critic"] = InexactMidSteppedCritic(model)
     args["critic"].learning_rate_scheme = SteppedTabularLearningRateScheme(args["critic"].core)
+    args["critic"].time_horizon = args["horizon"]
+
+def imhc(args):
+    n_steps = args["n_steps"]
+    model = stepped_q_model(n_steps)
+    args["critic"] = InexactMidHybridCritic(model)
+    args["critic"].learning_rate_scheme = SteppedTabularLearningRateScheme(args["critic"].stepped_core)
     args["critic"].time_horizon = args["horizon"]
 
 def qtc(args):
@@ -68,19 +82,33 @@ def qsc(args):
     args["critic"].learning_rate_scheme = SteppedTabularLearningRateScheme(args["critic"].core)
     args["critic"].time_horizon = args["horizon"]
 
-def biqtc(args):
-    n_steps = args["n_steps"]
-    model = traj_q_model(n_steps)
-    args["critic"] = BiQTrajCritic(model)
-    args["critic"].learning_rate_scheme = TrajTabularLearningRateScheme(args["critic"].core)
-    args["critic"].time_horizon = args["horizon"]
-
-def biqsc(args):
+def qhc(args):
     n_steps = args["n_steps"]
     model = stepped_q_model(n_steps)
-    args["critic"] = BiQSteppedCritic(model)
-    args["critic"].learning_rate_scheme = SteppedTabularLearningRateScheme(args["critic"].core)
+    args["critic"] = QHybridCritic(model)
+    args["critic"].learning_rate_scheme = SteppedTabularLearningRateScheme(args["critic"].stepped_core)
     args["critic"].time_horizon = args["horizon"]
+
+# def biqtc(args):
+#     n_steps = args["n_steps"]
+#     model = traj_q_model(n_steps)
+#     args["critic"] = BiQTrajCritic(model)
+#     args["critic"].learning_rate_scheme = TrajTabularLearningRateScheme(args["critic"].core)
+#     args["critic"].time_horizon = args["horizon"]
+#
+# def biqsc(args):
+#     n_steps = args["n_steps"]
+#     model = stepped_q_model(n_steps)
+#     args["critic"] = BiQSteppedCritic(model)
+#     args["critic"].learning_rate_scheme = SteppedTabularLearningRateScheme(args["critic"].core)
+#     args["critic"].time_horizon = args["horizon"]
+#
+# def biqhc(args):
+#     n_steps = args["n_steps"]
+#     model = stepped_q_model(n_steps)
+#     args["critic"] = BiQSteppedCritic(model)
+#     args["critic"].learning_rate_scheme = SteppedTabularLearningRateScheme(args["critic"].core)
+#     args["critic"].time_horizon = args["horizon"]
 
 def uqtc(args):
     n_steps = args["n_steps"]
@@ -102,6 +130,17 @@ def uqsc(args):
     args["critic"].u_critic.time_horizon = args["horizon"]
     args["critic"].q_critic.time_horizon = args["horizon"]
 
+def uqhc(args):
+    n_steps = args["n_steps"]
+    q_model = stepped_q_model(n_steps)
+    u_model = stepped_v_model(n_steps)
+    args["critic"] = UqHybridCritic(q_model, u_model)
+    args["critic"].u_critic.learning_rate_scheme = SteppedTabularLearningRateScheme(args["critic"].u_critic.stepped_core, True)
+    args["critic"].q_critic.learning_rate_scheme = SteppedTabularLearningRateScheme(args["critic"].q_critic.stepped_core)
+    args["critic"].u_critic.time_horizon = args["horizon"]
+    args["critic"].q_critic.time_horizon = args["horizon"]
+
+
 def atc(args):
     n_steps = args["n_steps"]
     q_model = traj_q_model(n_steps)
@@ -119,5 +158,15 @@ def asc(args):
     args["critic"] = ASteppedCritic(q_model, v_model)
     args["critic"].v_critic.learning_rate_scheme = SteppedTabularLearningRateScheme(args["critic"].v_critic.core, True)
     args["critic"].q_critic.learning_rate_scheme = SteppedTabularLearningRateScheme(args["critic"].q_critic.core)
+    args["critic"].v_critic.time_horizon = args["horizon"]
+    args["critic"].q_critic.time_horizon = args["horizon"]
+
+def ahc(args):
+    n_steps = args["n_steps"]
+    q_model = stepped_q_model(n_steps)
+    v_model = stepped_v_model(n_steps)
+    args["critic"] = AHybridCritic(q_model, v_model)
+    args["critic"].v_critic.learning_rate_scheme = SteppedTabularLearningRateScheme(args["critic"].v_critic.stepped_core, True)
+    args["critic"].q_critic.learning_rate_scheme = SteppedTabularLearningRateScheme(args["critic"].q_critic.stepped_core)
     args["critic"].v_critic.time_horizon = args["horizon"]
     args["critic"].q_critic.time_horizon = args["horizon"]

@@ -9,12 +9,12 @@ import sys
 import cProfile, pstats
 
 def run():
-    experiment_name = "MAG_TestA6_horizon_10000"
+    experiment_name = "MAG_TestA6_horizon_1000"
     n_stats_run_per_process = 1
 
 
     mods_to_mix = [
-        (imtc, uqtc, uqsc, imsc, noc, asc ,qsc),
+        (imhc, uqhc, mhc, noc, ahc ,qhc),
     ]
 
 
@@ -33,7 +33,7 @@ def run():
 
 if __name__ == '__main__':
 
-    # r = Runner('test', (noc,))
+    # r = Runner('test', (qhc,))
     #
     # profiler = cProfile.Profile()
     # profiler.enable()
@@ -43,7 +43,7 @@ if __name__ == '__main__':
     # profiler.disable()
     # stats = pstats.Stats(profiler).sort_stats('tottime')
     # stats.print_stats()
-    #
+
     n_processes = int(sys.argv[1])
     print(f"Number of processes: {n_processes}")
 
