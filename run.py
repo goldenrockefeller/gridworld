@@ -9,7 +9,7 @@ import sys
 import cProfile, pstats
 
 def run():
-    experiment_name = "MAG_TestA6_horizon_1000"
+    experiment_name = "MAG_TestB1"
     n_stats_run_per_process = 1
 
 
@@ -33,27 +33,28 @@ def run():
 
 if __name__ == '__main__':
 
-    r = Runner('test', (ahc,))
-    r.new_run()
+    # r = Runner('test', (ahc,))
+    #
     #
     # profiler = cProfile.Profile()
     # profiler.enable()
     #
-
+    #
+    # r.new_run()
     #
     # profiler.disable()
     # stats = pstats.Stats(profiler).sort_stats('tottime')
     # stats.print_stats()
 
-    # n_processes = int(sys.argv[1])
-    # print(f"Number of processes: {n_processes}")
-    #
-    # processes = [Process(target = run) for _ in range(n_processes)]
-    #
-    # for process in processes:
-    #     process.start()
-    #     sleep(2)
-    #
-    #
-    # for process in processes:
-    #     process.join()
+    n_processes = int(sys.argv[1])
+    print(f"Number of processes: {n_processes}")
+
+    processes = [Process(target = run) for _ in range(n_processes)]
+
+    for process in processes:
+        process.start()
+        sleep(2)
+
+
+    for process in processes:
+        process.join()
