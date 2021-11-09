@@ -49,7 +49,7 @@ def mtc(args):
     args["moving_critic"].learning_rate_scheme = TrajMonteLearningRateScheme(args["moving_critic"].core)
     args["moving_critic"].time_horizon = args["horizon"]
 
-    taregtting_model = targettting_traj_q_model(n_steps)
+    taregtting_model = targetting_traj_q_model(n_steps)
     args["targettting_critic"] = MidTrajCritic(targettting_model)
     args["targettting_critic"].learning_rate_scheme = TrajMonteLearningRateScheme(args["targettting_critic"].core)
     args["targettting_critic"].time_horizon = args["horizon"]
