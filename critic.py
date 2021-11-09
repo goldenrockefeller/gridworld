@@ -920,17 +920,9 @@ class USteppedCritic(AveragedSteppedCritic):
         self.learning_rate_scheme = BasicLearningRateScheme()
 
     def copy(self):
-        critic = self.__class__(self.stepped_core)
-        critic.learning_rate_scheme = self.learning_rate_scheme.copy()
-        critic.core = {key : self.core[key].copy() for key in self.core.keys()}
-
-        return critic
-
-    def copy(self):
         critic = self.__class__(self.core)
         critic.learning_rate_scheme = self.learning_rate_scheme.copy()
-        critic.stepped_core = {key : self.stepped_core[key].copy() for key in self.stepped_core.keys()}
-        critic.traj_core = self.traj_core.copy()
+        critic.core = {key : self.core[key].copy() for key in self.core.keys()}
 
         return critic
 
