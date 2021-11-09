@@ -431,7 +431,7 @@ class MidSteppedCritic(AveragedSteppedCritic):
         for step_id in range(n_steps):
             observation = observations[step_id]
             action = actions[step_id]
-            delta = error * learning_rates[step_id]  / n_steps
+            delta = error * learning_rates[step_id] / (n_steps * n_steps)
             self.core[(observation, action)][step_id] += delta
 
 class MidHybridCritic(AveragedHybridCritic):
@@ -450,7 +450,7 @@ class MidHybridCritic(AveragedHybridCritic):
         for step_id in range(n_steps):
             observation = observations[step_id]
             action = actions[step_id]
-            delta = error * learning_rates[step_id]  / n_steps
+            delta = error * learning_rates[step_id] / (n_steps * n_steps)
             self.stepped_core[(observation, action)][step_id] += delta
             self.traj_core[(observation,action)]  += delta / n_steps
 
