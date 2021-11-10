@@ -280,12 +280,14 @@ class TrajCritic():
     def __init__(self, ref_model):
         self.learning_rate_scheme = ReducedLearningRateScheme()
         self.core = {key: 0. for key in ref_model}
+        self.learning_rate = 1.
 
 
     def copy(self):
         critic = self.__class__(self.core)
         critic.learning_rate_scheme = self.learning_rate_scheme.copy()
         critic.core = self.core.copy()
+        critic.learning_rate = self.learning_rate
 
         return critic
 
@@ -481,7 +483,7 @@ class InexactMidTrajCritic(AveragedTrajCritic):
             action = actions[step_id]
             estimate = step_evals[step_id]
             error = fitness - estimate
-            delta = error * learning_rates[step_id]
+            delta = error * learning_rates[step_id] * self.learning_rate
             self.core[(observation, action)] += delta
 
 

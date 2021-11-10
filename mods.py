@@ -98,6 +98,22 @@ def imtc(args):
     args["targetting_critic"].learning_rate_scheme = TrajTabularLearningRateScheme(args["targetting_critic"].core)
     args["targetting_critic"].time_horizon = args["horizon"]
 
+def imtc_slow(args):
+    n_steps = args["n_steps"]
+
+    moving_model = moving_traj_q_model(n_steps)
+    args["moving_critic"] = InexactMidTrajCritic(moving_model)
+    args["moving_critic"].learning_rate_scheme = TrajTabularLearningRateScheme(args["moving_critic"].core)
+    args["moving_critic"].time_horizon = args["horizon"]
+    args["moving_critic"].learning_rate = 1. / n_steps
+
+    targetting_model = targetting_traj_q_model(n_steps)
+    args["targetting_critic"] = InexactMidTrajCritic(targetting_model)
+    args["targetting_critic"].learning_rate_scheme = TrajTabularLearningRateScheme(args["targetting_critic"].core)
+    args["targetting_critic"].time_horizon = args["horizon"]
+    args["targetting_critic"].learning_rate = 1. / n_steps
+
+
 def imsc(args):
     n_steps = args["n_steps"]
 
