@@ -262,6 +262,37 @@ def uqhc(args):
     args["targetting_critic"].u_critic.time_horizon = args["horizon"]
     args["targetting_critic"].q_critic.time_horizon = args["horizon"]
 
+def uqhc_l(trace_horizon):
+
+    trace_sustain = (trace_horizon - 1.) / trace_horizon
+
+    def uqhc_l_inner(args):
+        n_steps = args["n_steps"]
+
+        q_moving_model = moving_stepped_q_model(n_steps)
+        u_moving_model = stepped_v_model(n_steps)
+        args["moving_critic"] = UqHybridCritic(q_moving_model, u_moving_model)
+        args["moving_critic"].u_critic.learning_rate_scheme = SteppedTabularLearningRateScheme(args["moving_critic"].u_critic.stepped_core, True)
+        args["moving_critic"].q_critic.learning_rate_scheme = SteppedTabularLearningRateScheme(args["moving_critic"].q_critic.stepped_core)
+        args["moving_critic"].u_critic.time_horizon = args["horizon"]
+        args["moving_critic"].q_critic.time_horizon = args["horizon"]
+        args["moving_critic"].u_critic.trace_sustain = trace_sustain
+        args["moving_critic"].q_critic.trace_sustain = trace_sustain
+
+        q_targetting_model = targetting_stepped_q_model(n_steps)
+        u_targetting_model = stepped_v_model(n_steps)
+        args["targetting_critic"] = UqHybridCritic(q_targetting_model, u_targetting_model)
+        args["targetting_critic"].u_critic.learning_rate_scheme = SteppedTabularLearningRateScheme(args["targetting_critic"].u_critic.stepped_core, True)
+        args["targetting_critic"].q_critic.learning_rate_scheme = SteppedTabularLearningRateScheme(args["targetting_critic"].q_critic.stepped_core)
+        args["targetting_critic"].u_critic.time_horizon = args["horizon"]
+        args["targetting_critic"].q_critic.time_horizon = args["horizon"]
+        args["targetting_critic"].u_critic.trace_sustain = trace_sustain
+        args["targetting_critic"].q_critic.trace_sustain = trace_sustain
+
+    uqhc_l_inner.__name__ = f"uqhc_{trace_horizon}"
+    return uqhc_l_inner
+
+
 
 def atc(args):
     n_steps = args["n_steps"]
