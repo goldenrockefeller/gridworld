@@ -605,16 +605,13 @@ class QHybridCritic(AveragedHybridCritic):
 
         deltas = [0.] * n_steps
 
-        deltas[-1] = learning_rates[-1] * (rewards[-1] - step_evals[-1])
+        deltas[-1] =  rewards[-1] - step_evals[-1]
 
         for step_id in range(n_steps - 1):
             deltas[step_id] = (
-                learning_rates[step_id]
-                * (
-                    rewards[step_id]
-                    + step_evals[step_id + 1]
-                    - step_evals[step_id]
-                )
+                rewards[step_id]
+                + step_evals[step_id + 1]
+                - step_evals[step_id]
             )
 
         trace = 0.
@@ -622,13 +619,13 @@ class QHybridCritic(AveragedHybridCritic):
             deltas[step_id]  = deltas[step_id] + trace
             trace += self.trace_sustain * deltas[step_id]
 
-        self.stepped_core[(observations[-1], actions[-1])][-1] += deltas[-1]
-        self.traj_core[(observations[-1], actions[-1])] += deltas[-1] / n_steps
+        self.stepped_core[(observations[-1], actions[-1])][-1] += learning_rates[-1] * deltas[-1]
+        self.traj_core[(observations[-1], actions[-1])] += learning_rates[-1] * deltas[-1] / n_steps
 
         for step_id in range(n_steps - 1):
             observation_action = (observations[step_id], actions[step_id])
-            self.stepped_core[observation_action][step_id] += deltas[step_id]
-            self.traj_core[observation_action] += deltas[step_id] / n_steps
+            self.stepped_core[observation_action][step_id] +=  learning_rates[step_id] * deltas[step_id]
+            self.traj_core[observation_action] +=  learning_rates[step_id] * deltas[step_id] / n_steps
 
         # Fully reset Traj Core every so often to address quantization noise.
         if random_uniform() < 0.5 / len(self.traj_core):
@@ -1023,17 +1020,14 @@ class UHybridCritic(AveragedHybridCritic):
 
         deltas = [0.] * n_steps
 
-        deltas[0] = learning_rates[0] * -step_evals[0]
+        deltas[0] = -step_evals[0]
 
 
         for step_id in range(1, n_steps):
             deltas[step_id] = (
-                learning_rates[step_id]
-                * (
-                    rewards[step_id - 1]
-                    + step_evals[step_id - 1]
-                    - step_evals[step_id]
-                )
+                rewards[step_id - 1]
+                + step_evals[step_id - 1]
+                - step_evals[step_id]
             )
 
         trace = 0.
@@ -1042,12 +1036,12 @@ class UHybridCritic(AveragedHybridCritic):
             trace += self.trace_sustain * deltas[step_id]
 
 
-        self.stepped_core[observations[0]][0] += deltas[step_id]
-        self.traj_core[observations[0]] += deltas[step_id] / n_steps
+        self.stepped_core[observations[0]][0] += learning_rates[0] * deltas[0]
+        self.traj_core[observations[0]] += learning_rates[0] * deltas[0] / n_steps
 
         for step_id in range(1, n_steps):
-            self.stepped_core[observations[step_id]][step_id] += deltas[step_id]
-            self.traj_core[observations[step_id]] += deltas[step_id] / n_steps
+            self.stepped_core[observations[step_id]][step_id] += learning_rates[step_id] * deltas[step_id]
+            self.traj_core[observations[step_id]] += learning_rates[step_id] * deltas[step_id] / n_steps
 
         # Fully reset Traj Core every so often to address quantization noise.
         if random_uniform() < 0.5 / len(self.traj_core):
