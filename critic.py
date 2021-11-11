@@ -280,14 +280,12 @@ class TrajCritic():
     def __init__(self, ref_model):
         self.learning_rate_scheme = ReducedLearningRateScheme()
         self.core = {key: 0. for key in ref_model}
-        self.learning_rate = 1.
 
 
     def copy(self):
         critic = self.__class__(self.core)
         critic.learning_rate_scheme = self.learning_rate_scheme.copy()
         critic.core = self.core.copy()
-        critic.learning_rate = self.learning_rate
 
         return critic
 
@@ -348,14 +346,12 @@ class HybridCritic():
         self.stepped_core = {key: [0. for _ in range(len(ref_model[key]))] for key in ref_model}
 
         self.traj_core = {key: 0. for key in ref_model}
-        self.trace_sustain = 0.
 
     def copy(self):
         critic = self.__class__(self.stepped_core)
         critic.learning_rate_scheme = self.learning_rate_scheme.copy()
         critic.stepped_core = {key : self.stepped_core[key].copy() for key in self.stepped_core.keys()}
         critic.traj_core = self.traj_core.copy()
-        critic.trace_sustain = self.trace_sustain
 
         return critic
 
@@ -470,6 +466,14 @@ class MidHybridCritic(AveragedHybridCritic):
 
 
 class InexactMidTrajCritic(AveragedTrajCritic):
+    def __init__(self, ref_model):
+        AveragedTrajCritic.__init__(self, ref_model)
+        self.learning_rate = 1.
+
+    def copy(self):
+        critic = AveragedTrajCritic.copy(self)
+        critic.learning_rate = self.learning_rate
+        return critic
 
     def update(self, observations, actions, rewards):
         n_steps = len(observations)
@@ -594,6 +598,15 @@ class QSteppedCritic(AveragedSteppedCritic):
 
 
 class QHybridCritic(AveragedHybridCritic):
+    def __init__(self, ref_model):
+        AveragedHybridCritic.__init__(self, ref_model)
+        self.trace_sustain = 0.
+
+    def copy(self):
+        critic = AveragedHybridCritic.copy(self)
+        critic.trace_sustain = self.trace_sustain
+
+        return critic
 
 
     def update(self, observations, actions, rewards):
@@ -890,7 +903,6 @@ class VHybridCritic(AveragedHybridCritic):
 class UTrajCritic(AveragedTrajCritic):
     def __init__(self, ref_model):
         self.core = {key: 0. for key in ref_model}
-
         self.learning_rate_scheme = ReducedLearningRateScheme()
 
     def step_evals(self, observations, actions):
