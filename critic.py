@@ -616,9 +616,9 @@ class QHybridCritic(AveragedHybridCritic):
 
         trace = 0.
         for step_id in reversed(range(len(deltas))):
-            deltas[step_id]  = deltas[step_id] + trace
-            trace +=  deltas[step_id]
-            trace *= self.trace_sustain
+            trace += deltas[step_id]
+            deltas[step_id]  = trace
+            trace *= trace_sustain
 
         self.stepped_core[(observations[-1], actions[-1])][-1] += learning_rates[-1] * deltas[-1]
         self.traj_core[(observations[-1], actions[-1])] += learning_rates[-1] * deltas[-1] / n_steps
@@ -1033,8 +1033,8 @@ class UHybridCritic(AveragedHybridCritic):
 
         trace = 0.
         for step_id in range(len(deltas)):
-            deltas[step_id]  = deltas[step_id] + trace
             trace += deltas[step_id]
+            deltas[step_id]  = trace
             trace *= self.trace_sustain
 
 
