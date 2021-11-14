@@ -33,6 +33,13 @@ def list_multiply(my_list, val):
     return my_list
 
 
+def apply_eligibility_trace(deltas, trace_sustain):
+    trace = 0.
+    for step_id in range(len(deltas)):
+        trace += deltas[step_id]
+        deltas[step_id]  = trace
+        trace *= trace_sustain
+
 class BasicLearningRateScheme():
     def __init__(self, learning_rate = 0.01):
         self.learning_rate = learning_rate
@@ -396,6 +403,7 @@ class AveragedHybridCritic(HybridCritic):
         return HybridCritic.eval(self, observations, actions) / len(observations)
 
 
+
 class MidTrajCritic(AveragedTrajCritic):
 
     def update(self, observations, actions, rewards):
@@ -569,6 +577,16 @@ class QTrajCritic(AveragedTrajCritic):
 
 
 class QSteppedCritic(AveragedSteppedCritic):
+    def __init__(self, ref_model):
+        AveragedSteppedCritic.__init__(self, ref_model)
+        self.trace_sustain = 0.
+
+    def copy(self):
+        critic = AveragedSteppedCritic.copy(self)
+        critic.trace_sustain = self.trace_sustain
+
+        return critic
+
 
 
     def update(self, observations, actions, rewards):
@@ -578,23 +596,24 @@ class QSteppedCritic(AveragedSteppedCritic):
 
         learning_rates = self.learning_rate_scheme.learning_rates(observations, actions)
 
-        self.core[(observations[-1], actions[-1])][-1] += (
-            learning_rates[-1]
-            * (
-                rewards[-1]
-                - step_evals[-1]
-            )
-        )
+        deltas = [0.] * n_steps
+
+        deltas[-1] =  rewards[-1] - step_evals[-1]
 
         for step_id in range(n_steps - 1):
-            self.core[(observations[step_id], actions[step_id])][step_id] += (
-                learning_rates[step_id]
-                * (
-                    rewards[step_id]
-                    + step_evals[step_id + 1]
-                    - step_evals[step_id]
-                )
+            deltas[step_id] = (
+                rewards[step_id]
+                + step_evals[step_id + 1]
+                - step_evals[step_id]
             )
+
+        apply_eligibility_trace(deltas, self.trace_sustain)
+
+        self.core[(observations[-1], actions[-1])][-1] += learning_rates[-1] * deltas[-1]
+
+        for step_id in range(n_steps - 1):
+            observation_action = (observations[step_id], actions[step_id])
+            self.core[observation_action][step_id] +=  learning_rates[step_id] * deltas[step_id]
 
 
 class QHybridCritic(AveragedHybridCritic):
@@ -627,11 +646,7 @@ class QHybridCritic(AveragedHybridCritic):
                 - step_evals[step_id]
             )
 
-        trace = 0.
-        for step_id in reversed(range(len(deltas))):
-            trace += deltas[step_id]
-            deltas[step_id]  = trace
-            trace *= self.trace_sustain
+        apply_eligibility_trace(deltas, self.trace_sustain)
 
         self.stepped_core[(observations[-1], actions[-1])][-1] += learning_rates[-1] * deltas[-1]
         self.traj_core[(observations[-1], actions[-1])] += learning_rates[-1] * deltas[-1] / n_steps
@@ -767,6 +782,7 @@ class VTrajCritic(AveragedTrajCritic):
 
         learning_rates = self.learning_rate_scheme.learning_rates(observations, actions)
 
+
         self.core[observations[-1]] += (
             learning_rates[-1]
             * (
@@ -791,12 +807,14 @@ class VSteppedCritic(AveragedSteppedCritic):
     def __init__(self, ref_model):
         self.core = {key: [0. for _ in range(len(ref_model[key]))] for key in ref_model}
         self.learning_rate_scheme = BasicLearningRateScheme()
+        self.trace_sustain = 0.
 
 
     def copy(self):
         critic = self.__class__(self.core)
         critic.learning_rate_scheme = self.learning_rate_scheme.copy()
         critic.core = {key : self.core[key].copy() for key in self.core.keys()}
+        critic.trace_sustain = self.trace_sustain
 
         return critic
 
@@ -817,23 +835,24 @@ class VSteppedCritic(AveragedSteppedCritic):
 
         learning_rates = self.learning_rate_scheme.learning_rates(observations, actions)
 
-        self.core[observations[-1]][-1] += (
-            learning_rates[-1]
-            * (
-                rewards[-1]
-                - step_evals[-1]
-            )
-        )
+        deltas = [0.] * n_steps
+
+        deltas[-1] =  rewards[-1] - step_evals[-1]
 
         for step_id in range(n_steps - 1):
-            self.core[observations[step_id]][step_id] += (
-                learning_rates[step_id]
-                * (
-                    rewards[step_id]
-                    + step_evals[step_id + 1]
-                    - step_evals[step_id]
-                )
+            deltas[step_id] = (
+                rewards[step_id]
+                + step_evals[step_id + 1]
+                - step_evals[step_id]
             )
+
+        apply_eligibility_trace(deltas, self.trace_sustain)
+
+        self.core[observations[-1]][-1] += learning_rates[-1] * deltas[-1]
+
+        for step_id in range(n_steps - 1):
+            self.core[observations[step_id]][step_id] +=  learning_rates[step_id] * deltas[step_id]
+
 
 
 class VHybridCritic(AveragedHybridCritic):
@@ -842,6 +861,7 @@ class VHybridCritic(AveragedHybridCritic):
         self.traj_core = {key: 0. for key in ref_model}
         self.stepped_core = {key: [0. for _ in range(len(ref_model[key]))] for key in ref_model}
         self.learning_rate_scheme = BasicLearningRateScheme()
+        self.trace_sustain = 0.
 
 
     def copy(self):
@@ -849,6 +869,7 @@ class VHybridCritic(AveragedHybridCritic):
         critic.learning_rate_scheme = self.learning_rate_scheme.copy()
         critic.stepped_core = {key : self.stepped_core[key].copy() for key in self.stepped_core.keys()}
         critic.traj_core = self.traj_core.copy()
+        critic.trace_sustain = self.trace_sustain
 
         return critic
 
@@ -876,21 +897,26 @@ class VHybridCritic(AveragedHybridCritic):
 
         learning_rates = self.learning_rate_scheme.learning_rates(observations, actions)
 
-        delta = learning_rates[-1] * (rewards[-1] - step_evals[-1])
-        self.stepped_core[observations[-1]][-1] += delta
-        self.traj_core[observations[-1]] += delta / n_steps
+        deltas = [0.] * n_steps
+
+        deltas[-1] =  rewards[-1] - step_evals[-1]
 
         for step_id in range(n_steps - 1):
-            delta = (
-                learning_rates[step_id]
-                * (
-                    rewards[step_id]
-                    + step_evals[step_id + 1]
-                    - step_evals[step_id]
-                )
+            deltas[step_id] = (
+                rewards[step_id]
+                + step_evals[step_id + 1]
+                - step_evals[step_id]
             )
-            self.stepped_core[observations[step_id]][step_id] += delta
-            self.traj_core[observations[step_id]] += delta / n_steps
+
+        apply_eligibility_trace(deltas, self.trace_sustain)
+
+        self.stepped_core[observations[-1]][-1] += learning_rates[-1] * deltas[-1]
+        self.stepped_core[observations[-1]][-1] += learning_rates[-1] * deltas[-1] / n_steps
+
+        for step_id in range(n_steps - 1):
+            self.stepped_core[observations[step_id]][step_id] +=  learning_rates[step_id] * deltas[step_id]
+            self.stepped_core[observations[step_id]][step_id] +=  learning_rates[step_id] * deltas[step_id] / n_steps
+
 
         # Fully reset Traj Core every so often to address quantization noise.
         if random_uniform() < 0.5 / len(self.traj_core):
@@ -942,11 +968,13 @@ class USteppedCritic(AveragedSteppedCritic):
     def __init__(self, ref_model):
         self.core = {key: [0. for _ in range(len(ref_model[key]))] for key in ref_model}
         self.learning_rate_scheme = BasicLearningRateScheme()
+        self.trace_sustain = 0.
 
     def copy(self):
         critic = self.__class__(self.core)
         critic.learning_rate_scheme = self.learning_rate_scheme.copy()
         critic.core = {key : self.core[key].copy() for key in self.core.keys()}
+        critic.trace_sustain = self.trace_sustain
 
         return critic
 
@@ -966,22 +994,25 @@ class USteppedCritic(AveragedSteppedCritic):
 
         learning_rates = self.learning_rate_scheme.learning_rates(observations, actions)
 
-        self.core[observations[0]][0] += (
-            learning_rates[0]
-            * (
-                - step_evals[0]
-            )
-        )
+        deltas = [0.] * n_steps
+
+        deltas[0] = -step_evals[0]
+
 
         for step_id in range(1, n_steps):
-            self.core[observations[step_id]][step_id] += (
-                learning_rates[step_id]
-                * (
-                    rewards[step_id - 1]
-                    + step_evals[step_id - 1]
-                    - step_evals[step_id]
-                )
+            deltas[step_id] = (
+                rewards[step_id - 1]
+                + step_evals[step_id - 1]
+                - step_evals[step_id]
             )
+
+        apply_eligibility_trace(deltas, self.trace_sustain)
+
+
+        self.core[observations[0]][0] += learning_rates[0] * deltas[0]
+
+        for step_id in range(1, n_steps):
+            self.core[observations[step_id]][step_id] += learning_rates[step_id] * deltas[step_id]
 
 
 class UHybridCritic(AveragedHybridCritic):
@@ -1043,11 +1074,7 @@ class UHybridCritic(AveragedHybridCritic):
                 - step_evals[step_id]
             )
 
-        trace = 0.
-        for step_id in range(len(deltas)):
-            trace += deltas[step_id]
-            deltas[step_id]  = trace
-            trace *= self.trace_sustain
+        apply_eligibility_trace(deltas, self.trace_sustain)
 
 
         self.stepped_core[observations[0]][0] += learning_rates[0] * deltas[0]

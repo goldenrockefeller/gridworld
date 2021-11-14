@@ -182,6 +182,37 @@ def qhc(args):
     args["targetting_critic"].learning_rate_scheme = SteppedTabularLearningRateScheme(args["targetting_critic"].stepped_core)
     args["targetting_critic"].time_horizon = args["horizon"]
 
+def qhc_l(trace_horizon):
+
+    trace_sustain = (trace_horizon - 1.) / trace_horizon
+
+    def qhc_l_inner(args):
+        qhc(args)
+        if trace_sustain == float("inf"):
+            args["moving_critic"].trace_sustain = 1.
+            args["targetting_critic"].trace_sustain = 1.
+        else:
+            args["moving_critic"].trace_sustain = trace_sustain
+            args["targetting_critic"].trace_sustain = trace_sustain
+
+    qhc_l_inner.__name__ = f"qhc_{trace_horizon:.0f}"
+    return qhc_l_inner
+
+def qsc_l(trace_horizon):
+
+    trace_sustain = (trace_horizon - 1.) / trace_horizon
+
+    def qsc_l_inner(args):
+        qsc(args)
+        if trace_sustain == float("inf"):
+            args["moving_critic"].trace_sustain = 1.
+            args["targetting_critic"].trace_sustain = 1.
+        else:
+            args["moving_critic"].trace_sustain = trace_sustain
+            args["targetting_critic"].trace_sustain = trace_sustain
+
+    qsc_l_inner.__name__ = f"qsc_{trace_horizon:.0f}"
+    return qsc_l_inner
 
 # def biqtc(args):
 #     n_steps = args["n_steps"]
@@ -267,31 +298,44 @@ def uqhc_l(trace_horizon):
     trace_sustain = (trace_horizon - 1.) / trace_horizon
 
     def uqhc_l_inner(args):
-        n_steps = args["n_steps"]
+        uqhc(args)
+        if trace_sustain == float("inf"):
+            args["moving_critic"].u_critic.trace_sustain = 1.
+            args["moving_critic"].q_critic.trace_sustain = 1.
 
-        q_moving_model = moving_stepped_q_model(n_steps)
-        u_moving_model = stepped_v_model(n_steps)
-        args["moving_critic"] = UqHybridCritic(q_moving_model, u_moving_model)
-        args["moving_critic"].u_critic.learning_rate_scheme = SteppedTabularLearningRateScheme(args["moving_critic"].u_critic.stepped_core, True)
-        args["moving_critic"].q_critic.learning_rate_scheme = SteppedTabularLearningRateScheme(args["moving_critic"].q_critic.stepped_core)
-        args["moving_critic"].u_critic.time_horizon = args["horizon"]
-        args["moving_critic"].q_critic.time_horizon = args["horizon"]
-        args["moving_critic"].u_critic.trace_sustain = trace_sustain
-        args["moving_critic"].q_critic.trace_sustain = trace_sustain
+            args["targetting_critic"].u_critic.trace_sustain = 1.
+            args["targetting_critic"].q_critic.trace_sustain = 1.
+        else:
+            args["moving_critic"].u_critic.trace_sustain = trace_sustain
+            args["moving_critic"].q_critic.trace_sustain = trace_sustain
 
-        q_targetting_model = targetting_stepped_q_model(n_steps)
-        u_targetting_model = stepped_v_model(n_steps)
-        args["targetting_critic"] = UqHybridCritic(q_targetting_model, u_targetting_model)
-        args["targetting_critic"].u_critic.learning_rate_scheme = SteppedTabularLearningRateScheme(args["targetting_critic"].u_critic.stepped_core, True)
-        args["targetting_critic"].q_critic.learning_rate_scheme = SteppedTabularLearningRateScheme(args["targetting_critic"].q_critic.stepped_core)
-        args["targetting_critic"].u_critic.time_horizon = args["horizon"]
-        args["targetting_critic"].q_critic.time_horizon = args["horizon"]
-        args["targetting_critic"].u_critic.trace_sustain = trace_sustain
-        args["targetting_critic"].q_critic.trace_sustain = trace_sustain
+            args["targetting_critic"].u_critic.trace_sustain = trace_sustain
+            args["targetting_critic"].q_critic.trace_sustain = trace_sustain
 
-    uqhc_l_inner.__name__ = f"uqhc_{trace_horizon}"
+    uqhc_l_inner.__name__ = f"uqhc_{trace_horizon:.0f}"
     return uqhc_l_inner
 
+def uqsc_l(trace_horizon):
+
+    trace_sustain = (trace_horizon - 1.) / trace_horizon
+
+    def uqsc_l_inner(args):
+        uqsc(args)
+        if trace_sustain == float("inf"):
+            args["moving_critic"].u_critic.trace_sustain = 1.
+            args["moving_critic"].q_critic.trace_sustain = 1.
+
+            args["targetting_critic"].u_critic.trace_sustain = 1.
+            args["targetting_critic"].q_critic.trace_sustain = 1.
+        else:
+            args["moving_critic"].u_critic.trace_sustain = trace_sustain
+            args["moving_critic"].q_critic.trace_sustain = trace_sustain
+
+            args["targetting_critic"].u_critic.trace_sustain = trace_sustain
+            args["targetting_critic"].q_critic.trace_sustain = trace_sustain
+
+    uqsc_l_inner.__name__ = f"uqsc_{trace_horizon:.0f}"
+    return uqsc_l_inner
 
 
 def atc(args):
@@ -352,3 +396,47 @@ def ahc(args):
     args["targetting_critic"].q_critic.learning_rate_scheme = SteppedTabularLearningRateScheme(args["targetting_critic"].q_critic.stepped_core)
     args["targetting_critic"].v_critic.time_horizon = args["horizon"]
     args["targetting_critic"].q_critic.time_horizon = args["horizon"]
+
+def ahc_l(trace_horizon):
+
+    trace_sustain = (trace_horizon - 1.) / trace_horizon
+
+    def ahc_l_inner(args):
+        ahc(args)
+        if trace_sustain == float("inf"):
+            args["moving_critic"].v_critic.trace_sustain = 1.
+            args["moving_critic"].q_critic.trace_sustain = 1.
+
+            args["targetting_critic"].v_critic.trace_sustain = 1.
+            args["targetting_critic"].q_critic.trace_sustain = 1.
+        else:
+            args["moving_critic"].v_critic.trace_sustain = trace_sustain
+            args["moving_critic"].q_critic.trace_sustain = trace_sustain
+
+            args["targetting_critic"].v_critic.trace_sustain = trace_sustain
+            args["targetting_critic"].q_critic.trace_sustain = trace_sustain
+
+    ahc_l_inner.__name__ = f"ahc_{trace_horizon:.0f}"
+    return ahc_l_inner
+
+def asc_l(trace_horizon):
+
+    trace_sustain = (trace_horizon - 1.) / trace_horizon
+
+    def asc_l_inner(args):
+        asc(args)
+        if trace_sustain == float("inf"):
+            args["moving_critic"].v_critic.trace_sustain = 1.
+            args["moving_critic"].q_critic.trace_sustain = 1.
+
+            args["targetting_critic"].v_critic.trace_sustain = 1.
+            args["targetting_critic"].q_critic.trace_sustain = 1.
+        else:
+            args["moving_critic"].v_critic.trace_sustain = trace_sustain
+            args["moving_critic"].q_critic.trace_sustain = trace_sustain
+
+            args["targetting_critic"].v_critic.trace_sustain = trace_sustain
+            args["targetting_critic"].q_critic.trace_sustain = trace_sustain
+
+    asc_l_inner.__name__ = f"asc_{trace_horizon:.0f}"
+    return asc_l_inner
