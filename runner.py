@@ -170,7 +170,7 @@ class Runner:
             candidate_moving_policies = [moving_populations[robot_id][0] for robot_id in range(n_robots)]
             candidate_targetting_policies = [targetting_populations[robot_id][0] for robot_id in range(n_robots)]
             trajectories, records = domain.execute(candidate_moving_policies, candidate_targetting_policies)
-            print(f"Score: {sum(trajectories[0].rewards)}, Epoch: {epoch_id}")
+            print(f"Score: {sum(trajectories[0].rewards)}, Epoch: {epoch_id}, Trial: {self.trial_name}")
 
 
             score = sum(trajectories[0].rewards)
