@@ -14,7 +14,7 @@ def run():
 
 
     mods_to_mix = [
-        (mhc, imtc, uqsc, uqtc, uqhc_l(1), uqhc_l(50), uqhc_l(100), uqhc_l(10000000000)),
+        (uqhc_l(2), uqhc_l(5), uqhc_l(10), uqhc_l(25), ahc_l(50), imsc, uqsc_l(50))
     ]
 
 
@@ -32,8 +32,8 @@ def run():
 
 
 if __name__ == '__main__':
-
-    # r = Runner('test', (ahc,))
+    #
+    # r = Runner('test', (uqsc_l(50),))
     #
     #
     # profiler = cProfile.Profile()
