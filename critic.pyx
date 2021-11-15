@@ -1,3 +1,4 @@
+# cython: profile=True
 
 import numpy as np
 
@@ -46,6 +47,43 @@ def apply_reverse_eligibility_trace(deltas, trace_sustain):
         trace += deltas[step_id]
         deltas[step_id]  = trace
         trace *= trace_sustain
+
+
+def make_light(heavy, observation_actions_x_episodes):
+    light = {}
+
+    for observation_actions in observation_actions_x_episodes:
+        for observation_action in observation_actions:
+            if observation_action not in light:
+                light[observation_action] = {}
+
+        for step_id, observation_action in enumerate(observation_actions):
+            if step_id not in light[observation_action]:
+                light[observation_action][step_id] = heavy[observation_action][step_id]
+
+    return light
+
+def make_light_o(heavy, observation_actions_x_episodes):
+    light = {}
+
+    for observation_actions in observation_actions_x_episodes:
+        for observation, action in observation_actions:
+            if observation not in light:
+                light[observation] = {}
+
+        for step_id, observation_action in enumerate(observation_actions):
+            observation = observation_action[0]
+            if step_id not in light[observation]:
+                light[observation][step_id] = heavy[observation][step_id]
+
+    return light
+
+def update_heavy(heavy_model, light_model):
+    new_model = {}
+
+    for key in light_model:
+        for step_id in light_model[key]:
+            heavy_model[key][step_id] = light_model[key][step_id]
 
 class BasicLearningRateScheme():
     def __init__(self, learning_rate = 0.01):
@@ -175,6 +213,8 @@ class SteppedMonteLearningRateScheme():
         self.n_updates_elapsed += 1
         return rates
 
+
+
 class TrajTabularLearningRateScheme():
     def __init__(self, ref_model, has_only_observation_as_key = False, time_horizon = 100.):
         self.denoms = {key: 0. for key in ref_model}
@@ -252,7 +292,6 @@ class SteppedTabularLearningRateScheme():
 
         return scheme
 
-
     def learning_rates(self, observations, actions):
         rates = [0. for _ in range(len(observations))]
 
@@ -287,6 +326,72 @@ class SteppedTabularLearningRateScheme():
 
         self.n_updates_elapsed += 1
         return rates
+
+    # def learning_rates(self, list observations, list actions):
+    #     cdef list rates = [0. for _ in range(len(observations))]
+    #     cdef Py_ssize_t step_id
+    #     cdef double time_horizon =self.time_horizon
+    #     cdef double n_updates_elapsed = self.n_updates_elapsed
+    #     cdef dict denoms = self.denoms
+    #     cdef dict last_update_seen = self.last_update_seen
+    #     cdef bint has_only_observation_as_key = self.has_only_observation_as_key
+    #
+    #     for step_id, (observation, action) in enumerate(zip(observations, actions)):
+    #         if has_only_observation_as_key:
+    #             denoms[observation][step_id] *= (
+    #                 (1. - 1. / time_horizon)
+    #                 ** (n_updates_elapsed - last_update_seen[observation][step_id])
+    #             )
+    #             last_update_seen[observation][step_id] = n_updates_elapsed
+    #
+    #         else:
+    #             denoms[(observation, action)][step_id] *= (
+    #                 (1. - 1. / time_horizon)
+    #                 ** (n_updates_elapsed - last_update_seen[(observation, action)][step_id])
+    #             )
+    #             last_update_seen[(observation, action)][step_id] = n_updates_elapsed
+    #
+    #     for step_id, (observation, action) in enumerate(zip(observations, actions)):
+    #         if has_only_observation_as_key:
+    #             denoms[observation][step_id] += 1
+    #
+    #         else:
+    #             denoms[(observation, action)][step_id] += 1
+    #
+    #     for step_id, (observation, action) in enumerate(zip(observations, actions)):
+    #         if has_only_observation_as_key:
+    #             rates[step_id] = 1. / denoms[observation][step_id]
+    #
+    #         else:
+    #             rates[step_id] = 1. / denoms[(observation, action)][step_id]
+    #
+    #     n_updates_elapsed += 1
+    #     return rates
+
+    def make_light(self, observation_actions_x_episodes):
+        light = self.__class__.__new__(self.__class__)
+
+        if self.has_only_observation_as_key:
+            light.denoms = make_light_o(self.denoms, observation_actions_x_episodes)
+            light.last_update_seen =  make_light_o(self.denoms, observation_actions_x_episodes)
+        else:
+            light.denoms = make_light(self.denoms, observation_actions_x_episodes)
+            light.last_update_seen =  make_light(self.denoms, observation_actions_x_episodes)
+        light.n_updates_elapsed = self.n_updates_elapsed
+        light.time_horizon = self.time_horizon
+        light.has_only_observation_as_key = self.has_only_observation_as_key
+
+        return light
+
+
+    def update_heavy(self, light):
+        update_heavy(self.denoms, light.denoms)
+        update_heavy(self.last_update_seen, light.last_update_seen)
+        self.n_updates_elapsed = light.n_updates_elapsed
+        self.time_horizon = light.time_horizon
+        self.has_only_observation_as_key = light.has_only_observation_as_key
+
+
 
 
 
@@ -359,6 +464,7 @@ class HybridCritic():
         self.learning_rate_scheme = BasicLearningRateScheme()
         self.stepped_core = {key: [0. for _ in range(len(ref_model[key]))] for key in ref_model}
 
+
         self.traj_core = {key: 0. for key in ref_model}
 
     def copy(self):
@@ -378,6 +484,7 @@ class HybridCritic():
             observation = observations[step_id]
             action = actions[step_id]
             evals[step_id] = self.traj_core[(observation, action)]
+
         return evals
 
     def step_evals_from_stepped(self, observations, actions):
@@ -389,6 +496,21 @@ class HybridCritic():
             evals[step_id] = observation_evals[step_id]
         return evals
 
+    def make_light(self, observation_actions_x_episodes):
+        light = self.__class__.__new__(self.__class__)
+
+        light.learning_rate_scheme = self.learning_rate_scheme.make_light(observation_actions_x_episodes)
+        light.stepped_core = make_light(self.stepped_core, observation_actions_x_episodes)
+        light.traj_core = self.traj_core.copy()
+
+        return light
+
+
+    def update_heavy(self, light):
+        self.learning_rate_scheme.update_heavy(light.learning_rate_scheme)
+        update_heavy(self.stepped_core, light.stepped_core)
+        self.traj_core = light.traj_core.copy()
+
     @property
     def time_horizon(self):
         return self.learning_rate_scheme.time_horizon
@@ -396,6 +518,8 @@ class HybridCritic():
     @time_horizon.setter
     def time_horizon(self, val):
         self.learning_rate_scheme.time_horizon = val
+
+
 
 class AveragedTrajCritic(TrajCritic):
     def eval(self, observations, actions):
@@ -594,8 +718,6 @@ class QSteppedCritic(AveragedSteppedCritic):
 
         return critic
 
-
-
     def update(self, observations, actions, rewards):
         n_steps = len(observations)
 
@@ -623,6 +745,9 @@ class QSteppedCritic(AveragedSteppedCritic):
             self.core[observation_action][step_id] +=  learning_rates[step_id] * deltas[step_id]
 
 
+
+
+
 class QHybridCritic(AveragedHybridCritic):
     def __init__(self, ref_model):
         AveragedHybridCritic.__init__(self, ref_model)
@@ -637,6 +762,7 @@ class QHybridCritic(AveragedHybridCritic):
 
     def update(self, observations, actions, rewards):
         n_steps = len(observations)
+        last_step = n_steps - 1
 
         step_evals = self.step_evals_from_stepped(observations, actions)
 
@@ -644,7 +770,7 @@ class QHybridCritic(AveragedHybridCritic):
 
         deltas = [0.] * n_steps
 
-        deltas[-1] =  rewards[-1] - step_evals[-1]
+        deltas[last_step] =  rewards[last_step] - step_evals[last_step]
 
         for step_id in range(n_steps - 1):
             deltas[step_id] = (
@@ -655,21 +781,33 @@ class QHybridCritic(AveragedHybridCritic):
 
         apply_eligibility_trace(deltas, self.trace_sustain)
 
-        self.stepped_core[(observations[-1], actions[-1])][-1] += learning_rates[-1] * deltas[-1]
-        self.traj_core[(observations[-1], actions[-1])] += learning_rates[-1] * deltas[-1] / n_steps
+        self.stepped_core[(observations[last_step], actions[last_step])][last_step] += learning_rates[last_step] * deltas[last_step]
+        self.traj_core[(observations[last_step], actions[last_step])] += learning_rates[last_step] * deltas[last_step] / n_steps
 
         for step_id in range(n_steps - 1):
             observation_action = (observations[step_id], actions[step_id])
             self.stepped_core[observation_action][step_id] +=  learning_rates[step_id] * deltas[step_id]
             self.traj_core[observation_action] +=  learning_rates[step_id] * deltas[step_id] / n_steps
 
-        # Fully reset Traj Core every so often to address quantization noise.
-        if random_uniform() < 0.5 / len(self.traj_core):
-            for observation_action in self.traj_core:
-                total = 0.
-                for stepped_val in self.stepped_core[observation_action]:
-                    total += stepped_val
-                self.traj_core[observation_action] = total / n_steps
+        # # Fully reset Traj Core every so often to address quantization noise.
+        # if random_uniform() < 0.5 / len(self.traj_core):
+        #     for observation_action in self.traj_core:
+        #         total = 0.
+        #         for stepped_val in self.stepped_core[observation_action]:
+        #             total += stepped_val
+        #         self.traj_core[observation_action] = total / n_steps
+
+    def make_light(self, observation_actions_x_episodes):
+        light = AveragedHybridCritic.make_light(self, observation_actions_x_episodes)
+        light.trace_sustain = self.trace_sustain
+
+        return light
+
+
+    def update_heavy(self, light):
+        AveragedHybridCritic.update_heavy(self, light)
+        self.trace_sustain = light.trace_sustain
+
 
 # class BiQTrajCritic(AveragedTrajCritic):
 #
@@ -1052,6 +1190,7 @@ class UHybridCritic(AveragedHybridCritic):
         return evals
 
     def step_evals_from_stepped(self, observations, actions):
+
         evals = [0. for _ in range(len(observations))]
         for step_id in range(len(observations)):
             observation = observations[step_id]
@@ -1091,13 +1230,29 @@ class UHybridCritic(AveragedHybridCritic):
             self.stepped_core[observations[step_id]][step_id] += learning_rates[step_id] * deltas[step_id]
             self.traj_core[observations[step_id]] += learning_rates[step_id] * deltas[step_id] / n_steps
 
-        # Fully reset Traj Core every so often to address quantization noise.
-        if random_uniform() < 0.5 / len(self.traj_core):
-            for observation_action in self.traj_core:
-                total = 0.
-                for stepped_val in self.stepped_core[observation_action]:
-                    total += stepped_val
-                self.traj_core[observation_action] = total / n_steps
+        # # Fully reset Traj Core every so often to address quantization noise.
+        # if random_uniform() < 0.5 / len(self.traj_core):
+        #     for observation_action in self.traj_core:
+        #         total = 0.
+        #         for stepped_val in self.stepped_core[observation_action]:
+        #             total += stepped_val
+        #         self.traj_core[observation_action] = total / n_steps
+
+    def make_light(self, observation_actions_x_episodes):
+        light = self.__class__.__new__(self.__class__)
+
+        light.learning_rate_scheme = self.learning_rate_scheme.make_light(observation_actions_x_episodes)
+        light.stepped_core = make_light_o(self.stepped_core, observation_actions_x_episodes)
+        light.traj_core = self.traj_core.copy()
+
+        light.trace_sustain = self.trace_sustain
+
+        return light
+
+    def update_heavy(self, light):
+        AveragedHybridCritic.update_heavy(self, light)
+        self.trace_sustain = light.trace_sustain
+
 
 class ABaseCritic():
     def __init__(self):
@@ -1221,3 +1376,18 @@ class UqHybridCritic(UqBaseCritic):
         critic.q_critic = self.q_critic.copy()
 
         return critic
+
+    def make_light(self, observation_actions_x_episodes):
+
+        light = self.__class__.__new__(self.__class__)
+
+        light.q_critic = self.q_critic.make_light(observation_actions_x_episodes)
+        light.u_critic = self.u_critic.make_light(observation_actions_x_episodes)
+
+        return light
+
+
+    def update_heavy(self, light):
+        self.q_critic.update_heavy(light.q_critic)
+        self.u_critic.update_heavy(light.u_critic)
+
