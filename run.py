@@ -9,7 +9,7 @@ import sys
 import cProfile, pstats
 
 def run():
-    experiment_name = "MAG_TestB1"
+    experiment_name = "MAG_TestC1"
     n_stats_run_per_process = 2
 
 
