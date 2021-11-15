@@ -1,3 +1,4 @@
+# cython: profile=True
 
 import numpy as np
 from random import shuffle
@@ -26,6 +27,9 @@ cdef class Pos:
 random_cache_size = 10000
 random_uniform_counter = 0
 np_random_uniform_cache = np.random.random(random_cache_size)
+
+
+@cython.profile(False)
 cpdef double random_uniform():
     global random_uniform_counter, np_random_uniform_cache, random_cache_size
 
@@ -38,6 +42,8 @@ cpdef double random_uniform():
     return val
 
 
+
+@cython.profile(False)
 cpdef int manhattan_distance(Pos pos_a, Pos pos_b) except *:
     return (
         abs(pos_a.row - pos_b.row)
@@ -45,6 +51,7 @@ cpdef int manhattan_distance(Pos pos_a, Pos pos_b) except *:
     )
 
 
+@cython.profile(False)
 cpdef Pos closest_goal(Robot robot, list goals):
 
     cdef Pos the_closest_goal = robot.closest_goal
@@ -89,6 +96,7 @@ cpdef Pos closest_goal(Robot robot, list goals):
     return goal
 
 
+@cython.profile(False)
 cpdef list closest_robots(Robot robot, list prev_closest_robots, list robots):
 
     cdef int sort_n = 3

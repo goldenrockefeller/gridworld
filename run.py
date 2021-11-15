@@ -10,11 +10,11 @@ import cProfile, pstats
 
 def run():
     experiment_name = "MAG_TestB1"
-    n_stats_run_per_process = 1
+    n_stats_run_per_process = 2
 
 
     mods_to_mix = [
-        (uqhc_l(2), uqhc_l(5), uqhc_l(10), uqhc_l(25), ahc_l(50), imsc, uqsc_l(50))
+        (uqhc_l(50), imhc)
     ]
 
 
@@ -32,8 +32,8 @@ def run():
 
 
 if __name__ == '__main__':
-    #
-    # r = Runner('test', (uqsc_l(50),))
+
+    # r = Runner('test', (uqhc_l(50),))
     #
     #
     # profiler = cProfile.Profile()
