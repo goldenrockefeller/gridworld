@@ -35,6 +35,13 @@ def list_multiply(my_list, val):
 
 def apply_eligibility_trace(deltas, trace_sustain):
     trace = 0.
+    for step_id in reversed(range(len(deltas))):
+        trace += deltas[step_id]
+        deltas[step_id]  = trace
+        trace *= trace_sustain
+
+def apply_reverse_eligibility_trace(deltas, trace_sustain):
+    trace = 0.
     for step_id in range(len(deltas)):
         trace += deltas[step_id]
         deltas[step_id]  = trace
@@ -1006,7 +1013,7 @@ class USteppedCritic(AveragedSteppedCritic):
                 - step_evals[step_id]
             )
 
-        apply_eligibility_trace(deltas, self.trace_sustain)
+        apply_reverse_eligibility_trace(deltas, self.trace_sustain)
 
 
         self.core[observations[0]][0] += learning_rates[0] * deltas[0]
@@ -1074,7 +1081,7 @@ class UHybridCritic(AveragedHybridCritic):
                 - step_evals[step_id]
             )
 
-        apply_eligibility_trace(deltas, self.trace_sustain)
+        apply_reverse_eligibility_trace(deltas, self.trace_sustain)
 
 
         self.stepped_core[observations[0]][0] += learning_rates[0] * deltas[0]
