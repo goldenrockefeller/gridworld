@@ -90,7 +90,7 @@ class Runner:
         sys.stdout.flush()
 
         args = {
-            "n_steps" : 1000,
+            "n_steps" : 100,
             "n_rows" : 10,
             "n_cols" : 10,
             "horizon" : 1000
@@ -115,7 +115,7 @@ class Runner:
 
         domain = Domain(n_rows, n_cols, n_steps, n_robots, n_req, n_goals)
 
-        n_epochs = 6000
+        n_epochs = 3000
         n_policies = 50
 
         kl_penalty_factor = 10.
