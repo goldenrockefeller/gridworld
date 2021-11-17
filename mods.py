@@ -315,6 +315,12 @@ def uqhc_l(trace_horizon):
     uqhc_l_inner.__name__ = f"uqhc_{trace_horizon:.0f}"
     return uqhc_l_inner
 
+def uqhc_l_no_quant(trace_horizon):
+    f = uqhc_l(trace_horizon)
+    f.__name__ = f"uqhc_{trace_horizon:.0f}_no_quant"
+    return f
+
+
 def uqsc_l(trace_horizon):
 
     trace_sustain = (trace_horizon - 1.) / trace_horizon

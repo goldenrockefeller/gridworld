@@ -14,7 +14,7 @@ def run():
 
 
     mods_to_mix = [
-        (uqhc_l(50), imhc)
+        (uqhc_l_no_quant(50),)
     ]
 
 
