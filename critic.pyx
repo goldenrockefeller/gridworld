@@ -1055,11 +1055,11 @@ class VHybridCritic(AveragedHybridCritic):
         apply_eligibility_trace(deltas, self.trace_sustain)
 
         self.stepped_core[observations[-1]][-1] += learning_rates[-1] * deltas[-1]
-        self.traj_core[observations[-1]][-1] += learning_rates[-1] * deltas[-1] / len(self.stepped_core[observations[-1]])
+        self.traj_core[observations[-1]] += learning_rates[-1] * deltas[-1] / len(self.stepped_core[observations[-1]])
 
         for step_id in range(n_steps - 1):
             self.stepped_core[observations[step_id]][step_id] +=  learning_rates[step_id] * deltas[step_id]
-            self.traj_core[observations[step_id]][step_id] +=  learning_rates[step_id] * deltas[step_id] / len(self.stepped_core[observations[step_id]])
+            self.traj_core[observations[step_id]] +=  learning_rates[step_id] * deltas[step_id] / len(self.stepped_core[observations[step_id]])
 
 
         # Fully reset Traj Core every so often to address quantization noise.
