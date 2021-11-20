@@ -255,8 +255,8 @@ class Runner:
                             moving_critics[robot_id].update(observations, moving_actions, rewards)
 
 
-                        if moving_critics[robot_id] is not None:
-                            moving_critics[robot_id].update(observations, target_types, rewards)
+                        if targetting_critics[robot_id] is not None:
+                            targetting_critics[robot_id].update(observations, target_types, rewards)
                 #
 
 
@@ -331,8 +331,8 @@ class Runner:
                             moving_critics[robot_id].update(observations, moving_actions, rewards)
 
 
-                        if moving_critics[robot_id] is not None:
-                            moving_critics[robot_id].update(observations, target_types, rewards)
+                        if targetting_critics[robot_id] is not None:
+                            targetting_critics[robot_id].update(observations, target_types, rewards)
 
                     # for robot_id in range(n_robots):
                 #         observations = trajectories[robot_id].observations
