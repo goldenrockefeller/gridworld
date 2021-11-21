@@ -1252,16 +1252,6 @@ class UHybridCritic(AveragedHybridCritic):
         AveragedHybridCritic.update_heavy(self, light)
         self.trace_sustain = light.trace_sustain
 
-    @property
-    def trace_sustain(self):
-        raise RuntimeError()
-
-    @trace_sustain.setter
-    def trace_sustain(self, val):
-        a = self.u_critic.trace_sustain
-        b = self.q_critic.trace_sustain
-        self.u_critic.trace_sustain = val
-        self.q_critic.trace_sustain = val
 
 
 
@@ -1402,3 +1392,14 @@ class UqHybridCritic(UqBaseCritic):
         self.q_critic.update_heavy(light.q_critic)
         self.u_critic.update_heavy(light.u_critic)
 
+
+    @property
+    def trace_sustain(self):
+        raise RuntimeError()
+
+    @trace_sustain.setter
+    def trace_sustain(self, val):
+        a = self.u_critic.trace_sustain
+        b = self.q_critic.trace_sustain
+        self.u_critic.trace_sustain = val
+        self.q_critic.trace_sustain = val
