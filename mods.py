@@ -315,6 +315,24 @@ def uqhc_l(trace_horizon):
     uqhc_l_inner.__name__ = f"uqhc_{trace_horizon:.0f}"
     return uqhc_l_inner
 
+def uqhc_A(args):
+    uqhc(args)
+
+    trace_sustain_25 = (25 - 1.) / 25
+    trace_sustain_50 = (50 - 1.) / 50
+
+    trace_schedule = [trace_sustain_50] * 2000 + [trace_sustain_25] * 1000
+
+    args["moving_critic"].u_critic.trace_sustain = trace_sustain_50
+    args["moving_critic"].q_critic.trace_sustain = trace_sustain_50
+
+    args["targetting_critic"].u_critic.trace_sustain = trace_sustain_50
+    args["targetting_critic"].q_critic.trace_sustain = trace_sustain_50
+
+    args["trace_schedule"] = trace_schedule
+
+
+
 def uqhc_l_no_quant(trace_horizon):
     f = uqhc_l(trace_horizon)
     f.__name__ = f"uqhc_{trace_horizon:.0f}_no_quant"
@@ -342,6 +360,8 @@ def uqsc_l(trace_horizon):
 
     uqsc_l_inner.__name__ = f"uqsc_{trace_horizon:.0f}"
     return uqsc_l_inner
+
+
 
 
 def atc(args):

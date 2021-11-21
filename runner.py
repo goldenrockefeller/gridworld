@@ -90,7 +90,7 @@ class Runner:
         sys.stdout.flush()
 
         args = {
-            "n_steps" : 1000,
+            "n_steps" : 100,
             "n_rows" : 10,
             "n_cols" : 10,
             "horizon" : 1000
@@ -113,9 +113,14 @@ class Runner:
         n_rows = args["n_rows"]
         n_cols = args["n_cols"]
 
+        if "trace_schedule" in args:
+            trace_schedule = args["trace_schedule"]
+        else:
+            trace_schedule = None
+
         domain = Domain(n_rows, n_cols, n_steps, n_robots, n_req, n_goals)
 
-        n_epochs = 6000
+        n_epochs = 3000
         n_policies = 50
 
         kl_penalty_factor = 10.
@@ -139,6 +144,15 @@ class Runner:
             p = Pool(n_pools)
 
         for epoch_id in range(n_epochs):
+            if trace_schedule is not None:
+                for robot_id in range(n_robots):
+                    if moving_critics[robot_id] is not None:
+                        moving_critics[robot_id].trace_sustain = trace_schedule[epoch_id]
+
+
+                    if targetting_critics[robot_id] is not None:
+                        targetting_critics[robot_id].trace_sustain = trace_schedule[epoch_id]
+
 
             for population in moving_populations:
                 random.shuffle(population)
