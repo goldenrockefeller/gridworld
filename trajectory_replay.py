@@ -61,7 +61,7 @@ def on_key(event):
         draw_state(fig, robots, goals, step_id)
 
 
-traj_files = glob.glob("C:/Users/white/Documents/pCloud Sync/Research/rover_domain_data/MAG_TestB1/records/mhc/*.csv")
+traj_files = glob.glob("C:/Users/white/Documents/pCloud Sync/Research/rover_domain_data/MAG_TestC1/records/imhc/*.csv")
 
 traj_file = traj_files[0]
 
