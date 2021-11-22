@@ -349,6 +349,24 @@ def uqhc_B(args):
     args["trace_schedule"] = trace_schedule
 
 
+def uqhc_C(args):
+    uqhc(args)
+
+    n = 0.05
+    trace_horizons = [500 / (1 + n * x) for x in range(3000)]
+
+    trace_schedule = [(trace_horizon - 1.) / (trace_horizon) for trace_horizon in trace_horizons]
+
+    args["moving_critic"].u_critic.trace_sustain = trace_schedule[0]
+    args["moving_critic"].q_critic.trace_sustain = trace_schedule[0]
+
+    args["targetting_critic"].u_critic.trace_sustain = trace_schedule[0]
+    args["targetting_critic"].q_critic.trace_sustain = trace_schedule[0]
+
+    args["trace_schedule"] = trace_schedule
+
+
+
 def uqhc_l_no_quant(trace_horizon):
     f = uqhc_l(trace_horizon)
     f.__name__ = f"uqhc_{trace_horizon:.0f}_no_quant"
