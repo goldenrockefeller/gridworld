@@ -8,9 +8,13 @@ from time import sleep
 import sys
 import cProfile, pstats
 
+def imtc_200(args):
+    imtc(args)
+
 def run():
     experiment_name = "MAG_TestD1"
     n_stats_run_per_process = 1
+
 
 
     mods_to_mix = [
