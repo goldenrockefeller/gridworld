@@ -8,8 +8,6 @@ from time import sleep
 import sys
 import cProfile, pstats
 
-def imtc_200(args):
-    imtc(args)
 
 def run():
     experiment_name = "MAG_TestD1"
@@ -18,7 +16,7 @@ def run():
 
 
     mods_to_mix = [
-        (imtc_200, )
+        (imhc, )
     ]
 
 
@@ -37,28 +35,28 @@ def run():
 
 if __name__ == '__main__':
 
-    r = Runner('test', (imhc,))
-
-
-    profiler = cProfile.Profile()
-    profiler.enable()
-
-
-    r.new_run()
-
-    profiler.disable()
-    stats = pstats.Stats(profiler).sort_stats('tottime')
-    stats.print_stats()
-
-    # n_processes = int(sys.argv[1])
-    # print(f"Number of processes: {n_processes}")
-    #
-    # processes = [Process(target = run) for _ in range(n_processes)]
-    #
-    # for process in processes:
-    #     process.start()
-    #     sleep(2)
+    # r = Runner('test', (imhc,))
     #
     #
-    # for process in processes:
-    #     process.join()
+    # profiler = cProfile.Profile()
+    # profiler.enable()
+    #
+    #
+    # r.new_run()
+    #
+    # profiler.disable()
+    # stats = pstats.Stats(profiler).sort_stats('tottime')
+    # stats.print_stats()
+
+    n_processes = int(sys.argv[1])
+    print(f"Number of processes: {n_processes}")
+
+    processes = [Process(target = run) for _ in range(n_processes)]
+
+    for process in processes:
+        process.start()
+        sleep(2)
+
+
+    for process in processes:
+        process.join()
