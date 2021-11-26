@@ -91,7 +91,7 @@ class Runner:
             "n_steps" : 1000,
             "n_rows" : 10,
             "n_cols" : 10,
-            "process_noise" : 1./ 1000.
+            "process_noise" : 1./ 200.
         }
 
         for setup_func in self.setup_funcs:
