@@ -91,7 +91,7 @@ class Runner:
             "n_steps" : 1000,
             "n_rows" : 10,
             "n_cols" : 10,
-            "process_noise" : 1./ 200.
+            "process_noise" : 1./ 1000.
         }
 
         for setup_func in self.setup_funcs:
@@ -118,7 +118,7 @@ class Runner:
 
         domain = Domain(n_rows, n_cols, n_steps, n_robots, n_req, n_goals)
 
-        n_epochs = 6000
+        n_epochs = 3
         n_policies = 50
 
         kl_penalty_factor = 10.

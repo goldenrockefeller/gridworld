@@ -132,15 +132,11 @@ def imhc(args):
 
     moving_model = moving_stepped_q_model(n_steps)
     args["moving_critic"] = InexactMidHybridCritic(moving_model)
-    args["moving_critic"].stepped_critic.learning_rate_scheme = SteppedKalmanLearningRateScheme(moving_model)
-    args["moving_critic"].stepped_critic.learning_rate_scheme.process_noise = args["process_noise"]
     args["moving_critic"].process_noise = args["process_noise"]
 
 
     targetting_model = targetting_stepped_q_model(n_steps)
     args["targetting_critic"] = InexactMidHybridCritic(targetting_model)
-    args["targetting_critic"].stepped_critic.learning_rate_scheme = SteppedKalmanLearningRateScheme(targetting_model)
-    args["targetting_critic"].stepped_critic.learning_rate_scheme.process_noise = args["process_noise"]
     args["targetting_critic"].process_noise = args["process_noise"]
 
 
@@ -177,14 +173,10 @@ def qhc(args):
 
     moving_model = moving_stepped_q_model(n_steps)
     args["moving_critic"] = QHybridCritic(moving_model)
-    args["moving_critic"].stepped_critic.learning_rate_scheme = SteppedKalmanLearningRateScheme(moving_model)
-    args["moving_critic"].stepped_critic.learning_rate_scheme.process_noise = args["process_noise"]
     args["moving_critic"].process_noise = args["process_noise"]
 
     targetting_model = targetting_stepped_q_model(n_steps)
     args["targetting_critic"] = QHybridCritic(targetting_model)
-    args["targetting_critic"].stepped_critic.learning_rate_scheme = SteppedKalmanLearningRateScheme(targetting_model)
-    args["targetting_critic"].stepped_critic.learning_rate_scheme.process_noise = args["process_noise"]
     args["targetting_critic"].process_noise = args["process_noise"]
 
 
@@ -286,19 +278,11 @@ def uqhc(args):
     q_moving_model = moving_stepped_q_model(n_steps)
     u_moving_model = stepped_v_model(n_steps)
     args["moving_critic"] = UqHybridCritic(q_moving_model, u_moving_model)
-    args["moving_critic"].stepped_critic.u_critic.learning_rate_scheme = SteppedKalmanLearningRateScheme(u_moving_model, True)
-    args["moving_critic"].stepped_critic.q_critic.learning_rate_scheme = SteppedKalmanLearningRateScheme(q_moving_model)
-    args["moving_critic"].stepped_critic.u_critic.learning_rate_scheme.process_noise = args["process_noise"]
-    args["moving_critic"].stepped_critic.q_critic.learning_rate_scheme.process_noise = args["process_noise"]
     args["moving_critic"].process_noise = args["process_noise"]
 
     q_targetting_model = targetting_stepped_q_model(n_steps)
     u_targetting_model = stepped_v_model(n_steps)
     args["targetting_critic"] = UqHybridCritic(q_targetting_model, u_targetting_model)
-    args["targetting_critic"].stepped_critic.u_critic.learning_rate_scheme = SteppedKalmanLearningRateScheme(u_targetting_model, True)
-    args["targetting_critic"].stepped_critic.q_critic.learning_rate_scheme = SteppedKalmanLearningRateScheme(q_targetting_model)
-    args["targetting_critic"].stepped_critic.u_critic.learning_rate_scheme.process_noise = args["process_noise"]
-    args["targetting_critic"].stepped_critic.q_critic.learning_rate_scheme.process_noise = args["process_noise"]
     args["targetting_critic"].process_noise = args["process_noise"]
 
 #
@@ -452,20 +436,12 @@ def ahc(args):
     q_moving_model = moving_stepped_q_model(n_steps)
     v_moving_model = stepped_v_model(n_steps)
     args["moving_critic"] = AHybridCritic(q_moving_model, v_moving_model)
-    args["moving_critic"].stepped_critic.v_critic.learning_rate_scheme = SteppedKalmanLearningRateScheme(v_moving_model, True)
-    args["moving_critic"].stepped_critic.q_critic.learning_rate_scheme = SteppedKalmanLearningRateScheme(q_moving_model)
-    args["moving_critic"].stepped_critic.v_critic.learning_rate_scheme.process_noise = args["process_noise"]
-    args["moving_critic"].stepped_critic.q_critic.learning_rate_scheme.process_noise = args["process_noise"]
     args["moving_critic"].process_noise = args["process_noise"]
 
 
     q_targetting_model = targetting_stepped_q_model(n_steps)
     v_targetting_model = stepped_v_model(n_steps)
     args["targetting_critic"] = AHybridCritic(q_targetting_model, v_targetting_model)
-    args["targetting_critic"].stepped_critic.v_critic.learning_rate_scheme = SteppedKalmanLearningRateScheme(v_targetting_model, True)
-    args["targetting_critic"].stepped_critic.q_critic.learning_rate_scheme = SteppedKalmanLearningRateScheme(q_targetting_model)
-    args["targetting_critic"].stepped_critic.v_critic.learning_rate_scheme.process_noise = args["process_noise"]
-    args["targetting_critic"].stepped_critic.q_critic.learning_rate_scheme.process_noise = args["process_noise"]
     args["targetting_critic"].process_noise = args["process_noise"]
 
 

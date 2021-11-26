@@ -1,4 +1,4 @@
-
+# cython: profile=True
 
 import numpy as np
 from libc.math cimport log, exp
@@ -929,35 +929,35 @@ class SteppedCritic():
     #     self.learning_rate_scheme.time_horizon = val
 
 cdef class HybridInfo:
-    cdef public double traj_core
-    cdef public double traj_p
+    cdef public double traj_value
+    cdef public double traj_weight
     cdef public double traj_mul
     cdef public double traj_last_visited
-    cdef public list last_target_values
-    cdef public list last_target_weights
-    cdef public list target_mul
+    cdef public list stepped_values
+    cdef public list stepped_weights
+    cdef public list stepped_muls
     cdef public Py_ssize_t size
 
     def __init__(self, size):
-        self.traj_core = 0.
-        self.traj_p = float("inf")
+        self.traj_value = 0.
+        self.traj_weight = 0.
         self.traj_mul = 0.
-        self.traj_last_visited = 0.
-        self.last_target_values = [0. for _ in range(size)]
-        self.last_target_weights = [0. for _ in range(size)]
-        self.target_mul = [0. for _ in range(size)]
+        self.traj_last_visited = 0
+        self.stepped_values = [0. for _ in range(size)]
+        self.stepped_weights = [0. for _ in range(size)]
+        self.stepped_muls = [0. for _ in range(size)]
         self.size = size
 
     def copy(self):
         info = self.__class__(self.size)
 
-        info.traj_core = self.traj_core
-        info.traj_p = self.traj_p
+        info.traj_value = self.traj_value
+        info.traj_weight = self.traj_weight
         info.traj_mul = self.traj_mul
         info.traj_last_visited = self.traj_last_visited
-        info.last_target_values = self.last_target_values.copy()
-        info.last_target_weights = self.last_target_weights.copy()
-        info.target_mul = self.target_mul.copy()
+        info.stepped_values = self.stepped_values.copy()
+        info.stepped_weights = self.stepped_weights.copy()
+        info.stepped_muls = self.stepped_muls.copy()
         info.size = self.size
 
         return info
@@ -970,8 +970,6 @@ cdef class HybridCritic():
     cdef public tuple init_params
 
     def __init__(self, ref_model):
-        self.stepped_critic = None
-
         self.info = {key: HybridInfo(len(ref_model[key])) for key in ref_model}
         self.process_noise = 0.
         self.n_process_steps_elapsed = 0
@@ -979,7 +977,6 @@ cdef class HybridCritic():
 
     def copy(self):
         critic = self.__class__(*self.init_params)
-        critic.stepped_critic = self.stepped_critic.copy()
         critic.info = {key: self.info[key].copy() for key in self.info}
         critic.process_noise = self.process_noise
         critic.n_process_steps_elapsed = self.n_process_steps_elapsed
@@ -988,44 +985,32 @@ cdef class HybridCritic():
         return critic
 
     def update(self, observations, actions, rewards):
-        self.stepped_critic.update(observations, actions, rewards)
-
-    def advance_process(self):
-        self.stepped_critic.advance_process()
-        self.n_process_steps_elapsed += 1
-
-    def eval(self, observations, actions):
-        return list_sum(self.step_evals(observations, actions))
-
-
-    def step_evals(self, list observations, list actions):
-        cdef list evals
         cdef list targets
         cdef list target_uncertainties
         cdef Py_ssize_t step_id
         cdef tuple key
-        cdef double target
-        cdef double target_uncertainty
-        cdef double old_uncertainty
+        cdef double target_value
+        cdef double target_weight
+
+        cdef double traj_value
+        cdef double traj_weight
         cdef double traj_mul
-        cdef double value
+        cdef double old_uncertainty
         cdef double new_uncertainty
-        cdef double weight
-        cdef double last_target_value
-        cdef double last_target_weight
-        cdef double target_mul
-        cdef double uncertainty
-        cdef double ratio
 
-        cdef list last_target_values
-        cdef list last_target_weights
-        cdef list target_muls
+        cdef double stepped_value
+        cdef double stepped_weight
+        cdef double stepped_mul
+        cdef double last_stepped_value
+        cdef double last_stepped_weight
+        cdef HybridInfo info
+
+        cdef list stepped_values
+        cdef list stepped_weights
+        cdef list stepped_muls
 
 
-
-        evals = [0. for _ in range(len(observations))]
-
-        targets, target_uncertainties = self.targets(observations, actions)
+        targets, target_uncertainties = self.targets(observations, actions, rewards)
 
         for step_id in range(len(observations)):
             observation = observations[step_id]
@@ -1034,56 +1019,67 @@ cdef class HybridCritic():
             key = (observation, action)
 
             info = self.info[key]
-            last_target_values = info.last_target_values
-            last_target_weights = info.last_target_weights
-            target_muls = info.target_mul
+            stepped_values = info.stepped_values
+            stepped_weights = info.stepped_weights
+            stepped_muls = info.stepped_muls
 
-            target = targets[step_id]
-            target_uncertainty = target_uncertainties[step_id]
+            target_value = targets[step_id]
+            target_weight = 1. / target_uncertainties[step_id]
 
-            old_uncertainty = info.traj_p
+            traj_weight = info.traj_weight
             traj_mul = info.traj_mul
+            traj_value = info.traj_value
 
-            if old_uncertainty == float("inf"):
-                if traj_mul != 0.:
-                    raise RuntimeError()
-                info.traj_core = target
-                info.traj_p = target_uncertainty
-            else:
-                value = info.traj_core
+            if traj_weight > 0.:
+                old_uncertainty = 1. / traj_weight
                 new_uncertainty = old_uncertainty + self.process_noise * (self.n_process_steps_elapsed - info.traj_last_visited)
-                weight = 1. / new_uncertainty
                 traj_mul += log(old_uncertainty / new_uncertainty)
+                traj_weight = 1. / new_uncertainty
 
-                last_target_value = last_target_values[step_id]
-                last_target_weight = last_target_weights[step_id]
-                target_mul = target_muls[step_id]
-                last_target_weight *= exp(traj_mul - target_mul)
 
-                value -= last_target_weight * last_target_value
-                weight = max(0., weight - last_target_weight)
-                if weight == 0.:
-                    new_uncertainty = float("inf")
-                else:
-                    new_uncertainty = 1./weight
+            stepped_value = stepped_values[step_id]
+            stepped_weight = stepped_weights[step_id]
+            stepped_mul = stepped_muls[step_id]
+            stepped_weight *= exp(traj_mul - stepped_mul)
+            stepped_mul = traj_mul
 
-                value, uncertainty, ratio = fast_weighted_average(value, new_uncertainty, target, target_uncertainty)
-                traj_mul += log(ratio)
-                info.traj_mul = traj_mul
-                last_target_values[step_id] = target
-                last_target_weights[step_id] = 1. - ratio
-                target_muls[step_id] = traj_mul
+            last_stepped_value = stepped_value
+            last_stepped_weight = stepped_weight
 
-                info.traj_p = uncertainty
-                info.traj_core = value
+            stepped_value = (stepped_value * stepped_weight + target_value * target_weight) / (stepped_weight + target_weight)
+            stepped_weight = stepped_weight + target_weight
 
-                info.traj_last_visited = self.n_process_steps_elapsed
+            traj_value = (
+                (traj_value * traj_weight - last_stepped_value * last_stepped_weight + stepped_value * stepped_weight)
+                / (traj_weight -  last_stepped_weight + stepped_weight)
+            )
+            traj_weight = traj_weight - last_stepped_weight + stepped_weight
+
+            info.traj_mul = traj_mul
+            info.traj_value = traj_value
+            info.traj_weight = traj_weight
+            stepped_values[step_id] = stepped_value
+            stepped_weights[step_id] = stepped_weight
+            stepped_muls[step_id] = stepped_mul
+
+            info.traj_last_visited = self.n_process_steps_elapsed
+
+    def advance_process(self):
+        self.n_process_steps_elapsed += 1
+
+    def eval(self, observations, actions):
+        return list_sum(self.step_evals(observations, actions))
+
+
+    def step_evals(self, list observations, list actions):
+
+        evals = [0. for _ in range(len(observations))]
 
         for step_id in range(len(observations)):
             observation = observations[step_id]
             action = actions[step_id]
             key = (observation, action)
-            evals[step_id] = self.info[key].traj_core
+            evals[step_id] = self.info[key].traj_value
 
         return evals
 
@@ -1197,15 +1193,11 @@ class InexactMidSteppedCritic(AveragedSteppedCritic):
 
 
 class InexactMidHybridCritic(AveragedHybridCritic):
-    def __init__(self, ref_model):
-        AveragedHybridCritic.__init__(self, ref_model)
-        self.stepped_critic = InexactMidSteppedCritic(ref_model)
-        self.stepped_critic.learning_rate_scheme = TrajKalmanLearningRateScheme(ref_model, False)
+    def targets(self, observations, actions, rewards):
 
-    def targets(self, observations, actions):
-
-        targets = self.stepped_critic.step_evals(observations, actions)
-        target_uncertainties = self.stepped_critic.learning_rate_scheme.uncertainties(observations, actions)
+        sum_rewards = sum(rewards)
+        targets = [sum_rewards for i in range(len(observations))]
+        target_uncertainties = [1. for i in range(len(observations))]
 
         return targets, target_uncertainties
 
