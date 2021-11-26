@@ -73,8 +73,6 @@ class Runner:
 
 
     def new_run(self):
-        n_pools = 1
-
         datetime_str = (
             dt.datetime.now().isoformat()
             .replace("-", "").replace(':', '').replace(".", "_")
@@ -93,7 +91,7 @@ class Runner:
             "n_steps" : 1000,
             "n_rows" : 10,
             "n_cols" : 10,
-            "horizon" : 1000
+            "process_noise" : 1./ 1000.
         }
 
         for setup_func in self.setup_funcs:
@@ -120,7 +118,7 @@ class Runner:
 
         domain = Domain(n_rows, n_cols, n_steps, n_robots, n_req, n_goals)
 
-        n_epochs = 6000
+        n_epochs = 3
         n_policies = 50
 
         kl_penalty_factor = 10.
@@ -139,9 +137,6 @@ class Runner:
         expected_returns = []
         critic_a_evals =[]
         critic_a_score_losses = []
-
-        if n_pools > 1:
-            p = Pool(n_pools)
 
         for epoch_id in range(n_epochs):
             if trace_schedule is not None:
@@ -163,252 +158,51 @@ class Runner:
             moving_phenotypes_x_robot = [phenotypes_from_population(moving_populations[i]) for i in range(n_robots)]
             targetting_phenotypes_x_robot = [phenotypes_from_population(targetting_populations[i]) for i in range(n_robots)]
 
-            if n_pools > 1:
-                moving_policies_x_phenotype = [[moving_phenotypes_x_robot[robot_id][phenotype_id]["policy"] for robot_id in range(n_robots)] for phenotype_id in range(n_policies)]
-                targetting_policies_x_phenotype = [[targetting_phenotypes_x_robot[robot_id][phenotype_id]["policy"] for robot_id in range(n_robots)] for phenotype_id in range(n_policies)]
-                args_list = list(zip([domain  for phenotype_id in range(n_policies)], moving_policies_x_phenotype, targetting_policies_x_phenotype))
-                trajectories_x_phenotype, records_x_phenotype = list(zip(*p.map(domain_execute, args_list)))
-                #
-                #
-                # light_moving_critics = [None] * n_robots
-                # light_targetting_critics = [None] * n_robots
-                #
-                # rewards_x_phenotype_x_robot = [[trajectories_x_phenotype[phenotype_id][robot_id].rewards for phenotype_id in range(n_policies)] for robot_id in range(n_robots)]
-                # target_types_x_phenotype_x_robot = [[trajectories_x_phenotype[phenotype_id][robot_id].target_types for phenotype_id in range(n_policies)] for robot_id in range(n_robots)]
-                # moving_actions_x_phenotype_x_robot = [[trajectories_x_phenotype[phenotype_id][robot_id].moving_actions for phenotype_id in range(n_policies)] for robot_id in range(n_robots)]
-                # observations_x_phenotype_x_robot = [[trajectories_x_phenotype[phenotype_id][robot_id].observations for phenotype_id in range(n_policies)] for robot_id in range(n_robots)]
-                #
-                # moving_actions_x_phenotype_x_robot = [[trajectories_x_phenotype[phenotype_id][robot_id].moving_actions for phenotype_id in range(n_policies)] for robot_id in range(n_robots)]
-                # observations_x_phenotype_x_robot = [[trajectories_x_phenotype[phenotype_id][robot_id].observations for phenotype_id in range(n_policies)] for robot_id in range(n_robots)]
-                #
-                #
-                # for robot_id in range(n_robots):
-                #     observation_actions_x_episode = [
-                #         list(zip(
-                #             trajectories_x_phenotype[phenotype_id][robot_id].observations,
-                #             trajectories_x_phenotype[phenotype_id][robot_id].moving_actions
-                #         ))
-                #         for phenotype_id in range(n_policies)
-                #     ]
-                #
-                #     light_moving_critics[robot_id] = moving_critics[robot_id].make_light(observation_actions_x_episode) if moving_critics[robot_id] is not None else None
-                #
-                #     observation_actions_x_episode = [
-                #         list(zip(
-                #             trajectories_x_phenotype[phenotype_id][robot_id].observations,
-                #             trajectories_x_phenotype[phenotype_id][robot_id].target_types
-                #         ))
-                #         for phenotype_id in range(n_policies)
-                #     ]
-                #     light_targetting_critics[robot_id] = targetting_critics[robot_id].make_light(observation_actions_x_episode) if targetting_critics[robot_id] is not None else None
-                #
-                # args_list = (
-                #     list(zip(
-                #         rewards_x_phenotype_x_robot * 2,
-                #         observations_x_phenotype_x_robot * 2,
-                #         target_types_x_phenotype_x_robot + moving_actions_x_phenotype_x_robot,
-                #         light_targetting_critics + light_moving_critics,
-                #     ))
-                # )
-                # critics_x_robot, fitnesses_x_robot = list(zip(* p.map(critic_update, args_list)))
-                #
-                # light_targetting_critics = critics_x_robot[:len(critics_x_robot)//2]
-                # targetting_fitnesses = fitnesses_x_robot[:len(fitnesses_x_robot)//2]
-                #
-                # light_moving_critics = critics_x_robot[len(critics_x_robot)//2:]
-                # moving_fitnesses = fitnesses_x_robot[len(fitnesses_x_robot)//2:]
-                #
-                #
-                # for robot_id in range(n_robots):
-                #
-                #     if moving_critics[robot_id] is not None:
-                #         moving_critics[robot_id].update_heavy(light_moving_critics[robot_id])
-                #
-                #     if targetting_critics[robot_id] is not None:
-                #         targetting_critics[robot_id].update_heavy(light_targetting_critics[robot_id])
-                #
-                #     for phenotype_id in range(n_policies):
-                #         targetting_phenotypes_x_robot[robot_id][phenotype_id]["fitness"] = targetting_fitnesses[robot_id][phenotype_id]
-                #         moving_phenotypes_x_robot[robot_id][phenotype_id]["fitness"] = moving_fitnesses[robot_id][phenotype_id]
+
+            moving_policies_x_phenotype = [[moving_phenotypes_x_robot[robot_id][phenotype_id]["policy"] for robot_id in range(n_robots)] for phenotype_id in range(n_policies)]
+            targetting_policies_x_phenotype = [[targetting_phenotypes_x_robot[robot_id][phenotype_id]["policy"] for robot_id in range(n_robots)] for phenotype_id in range(n_policies)]
+            args_list = list(zip([domain  for phenotype_id in range(n_policies)], moving_policies_x_phenotype, targetting_policies_x_phenotype))
+            trajectories_x_phenotype, records_x_phenotype = list(zip(*map(domain_execute, args_list)))
+
+            for phenotype_id in range(len(moving_phenotypes_x_robot[0])):
+                moving_phenotypes = [moving_phenotypes_x_robot[robot_id][phenotype_id] for robot_id in range(n_robots)]
+                targetting_phenotypes = [targetting_phenotypes_x_robot[robot_id][phenotype_id] for robot_id in range(n_robots)]
+                trajectories = trajectories_x_phenotype[phenotype_id]
+                records = records_x_phenotype[phenotype_id]
+
+                for robot_id in range(n_robots):
+                    observations = trajectories[robot_id].observations
+                    moving_actions = trajectories[robot_id].moving_actions
+                    target_types = trajectories[robot_id].target_types
+                    rewards = trajectories[robot_id].rewards
+
+                    if moving_critics[robot_id] is not None:
+                        moving_critics[robot_id].update(observations, moving_actions, rewards)
 
 
-                for phenotype_id in range(len(moving_phenotypes_x_robot[0])):
-                    moving_phenotypes = [moving_phenotypes_x_robot[robot_id][phenotype_id] for robot_id in range(n_robots)]
-                    targetting_phenotypes = [targetting_phenotypes_x_robot[robot_id][phenotype_id] for robot_id in range(n_robots)]
-                    trajectories = trajectories_x_phenotype[phenotype_id]
-                    records = records_x_phenotype[phenotype_id]
-
-                    for robot_id in range(n_robots):
-                        observations = trajectories[robot_id].observations
-                        moving_actions = trajectories[robot_id].moving_actions
-                        target_types = trajectories[robot_id].target_types
-                        rewards = trajectories[robot_id].rewards
-
-                        if moving_critics[robot_id] is not None:
-                            fitness = moving_critics[robot_id].eval(observations, moving_actions)
-                        else:
-                            fitness = sum(rewards)
-
-                        moving_phenotypes[robot_id]["fitness"] = fitness
-
-                        if targetting_critics[robot_id] is not None:
-                            fitness = targetting_critics[robot_id].eval(observations, target_types)
-                        else:
-                            fitness = sum(rewards)
+                    if targetting_critics[robot_id] is not None:
+                        targetting_critics[robot_id].update(observations, target_types, rewards)
 
 
-                        targetting_phenotypes[robot_id]["fitness"] = fitness
+                for robot_id in range(n_robots):
+                    observations = trajectories[robot_id].observations
+                    moving_actions = trajectories[robot_id].moving_actions
+                    target_types = trajectories[robot_id].target_types
+                    rewards = trajectories[robot_id].rewards
 
-                    for robot_id in range(n_robots):
-                        observations = trajectories[robot_id].observations
-                        moving_actions = trajectories[robot_id].moving_actions
-                        target_types = trajectories[robot_id].target_types
-                        rewards = trajectories[robot_id].rewards
+                    if moving_critics[robot_id] is not None:
+                        fitness = moving_critics[robot_id].eval(observations, moving_actions)
+                    else:
+                        fitness = sum(rewards)
 
-                        if moving_critics[robot_id] is not None:
-                            moving_critics[robot_id].update(observations, moving_actions, rewards)
+                    moving_phenotypes[robot_id]["fitness"] = fitness
 
+                    if targetting_critics[robot_id] is not None:
+                        fitness = targetting_critics[robot_id].eval(observations, target_types)
+                    else:
+                        fitness = sum(rewards)
 
-                        if targetting_critics[robot_id] is not None:
-                            targetting_critics[robot_id].update(observations, target_types, rewards)
-                #
-
-
-
-                    # for robot_id in range(n_robots):
-                    #     observations = trajectories[robot_id].observations
-                    #     moving_actions = trajectories[robot_id].moving_actions
-                    #     target_types = trajectories[robot_id].target_types
-                    #     rewards = trajectories[robot_id].rewards
-                    #
-                    #     if moving_critics[robot_id] is not None:
-                    #         fitness = moving_critics[robot_id].eval(observations, moving_actions)
-                    #     else:
-                    #         fitness = sum(rewards)
-                    #
-                    #     if new_moving_critics[robot_id] is not None:
-                    #         new_moving_critics[robot_id].update(observations, moving_actions, rewards)
-                    #
-                    #     moving_phenotypes[robot_id]["fitness"] = fitness
-                    #
-                    #     if targetting_critics[robot_id] is not None:
-                    #         fitness = targetting_critics[robot_id].eval(observations, target_types)
-                    #     else:
-                    #         fitness = sum(rewards)
-                    #
-                    #     if new_targetting_critics[robot_id] is not None:
-                    #         new_targetting_critics[robot_id].update(observations, target_types, rewards)
-                    #
-                    #     targetting_phenotypes[robot_id]["fitness"] = fitness
-
-
-            else:
-                moving_policies_x_phenotype = [[moving_phenotypes_x_robot[robot_id][phenotype_id]["policy"] for robot_id in range(n_robots)] for phenotype_id in range(n_policies)]
-                targetting_policies_x_phenotype = [[targetting_phenotypes_x_robot[robot_id][phenotype_id]["policy"] for robot_id in range(n_robots)] for phenotype_id in range(n_policies)]
-                args_list = list(zip([domain  for phenotype_id in range(n_policies)], moving_policies_x_phenotype, targetting_policies_x_phenotype))
-                trajectories_x_phenotype, records_x_phenotype = list(zip(*map(domain_execute, args_list)))
-
-                for phenotype_id in range(len(moving_phenotypes_x_robot[0])):
-                    moving_phenotypes = [moving_phenotypes_x_robot[robot_id][phenotype_id] for robot_id in range(n_robots)]
-                    targetting_phenotypes = [targetting_phenotypes_x_robot[robot_id][phenotype_id] for robot_id in range(n_robots)]
-                    trajectories = trajectories_x_phenotype[phenotype_id]
-                    records = records_x_phenotype[phenotype_id]
-
-                    for robot_id in range(n_robots):
-                        observations = trajectories[robot_id].observations
-                        moving_actions = trajectories[robot_id].moving_actions
-                        target_types = trajectories[robot_id].target_types
-                        rewards = trajectories[robot_id].rewards
-
-                        if moving_critics[robot_id] is not None:
-                            fitness = moving_critics[robot_id].eval(observations, moving_actions)
-                        else:
-                            fitness = sum(rewards)
-
-                        moving_phenotypes[robot_id]["fitness"] = fitness
-
-                        if targetting_critics[robot_id] is not None:
-                            fitness = targetting_critics[robot_id].eval(observations, target_types)
-                        else:
-                            fitness = sum(rewards)
-
-
-                        targetting_phenotypes[robot_id]["fitness"] = fitness
-
-                    for robot_id in range(n_robots):
-                        observations = trajectories[robot_id].observations
-                        moving_actions = trajectories[robot_id].moving_actions
-                        target_types = trajectories[robot_id].target_types
-                        rewards = trajectories[robot_id].rewards
-
-                        if moving_critics[robot_id] is not None:
-                            moving_critics[robot_id].update(observations, moving_actions, rewards)
-
-
-                        if targetting_critics[robot_id] is not None:
-                            targetting_critics[robot_id].update(observations, target_types, rewards)
-
-                    # for robot_id in range(n_robots):
-                #         observations = trajectories[robot_id].observations
-                #         moving_actions = trajectories[robot_id].moving_actions
-                #         target_types = trajectories[robot_id].target_types
-                #         rewards = trajectories[robot_id].rewards
-                #
-                #         if moving_critics[robot_id] is not None:
-                #             fitness = moving_critics[robot_id].eval(observations, moving_actions)
-                #         else:
-                #             fitness = sum(rewards)
-                #
-                #         if new_moving_critics[robot_id] is not None:
-                #             new_moving_critics[robot_id].update(observations, moving_actions, rewards)
-                #
-                #         moving_phenotypes[robot_id]["fitness"] = fitness
-                #
-                #         if targetting_critics[robot_id] is not None:
-                #             fitness = targetting_critics[robot_id].eval(observations, target_types)
-                #         else:
-                #             fitness = sum(rewards)
-                #
-                #         if new_targetting_critics[robot_id] is not None:
-                #             new_targetting_critics[robot_id].update(observations, target_types, rewards)
-                #
-                #         targetting_phenotypes[robot_id]["fitness"] = fitness
-
-                # for phenotype_id in range(len(moving_phenotypes_x_robot[0])):
-                #
-                #     moving_phenotypes = [moving_phenotypes_x_robot[robot_id][phenotype_id] for robot_id in range(n_robots)]
-                #     targetting_phenotypes = [targetting_phenotypes_x_robot[robot_id][phenotype_id] for robot_id in range(n_robots)]
-                #
-                #     moving_policies = [moving_phenotypes[robot_id]["policy"] for robot_id in range(n_robots)]
-                #     targetting_policies = [targetting_phenotypes[robot_id]["policy"] for robot_id in range(n_robots)]
-                #
-                #     trajectories, records = domain.execute(moving_policies, targetting_policies)
-                #
-                #     for robot_id in range(n_robots):
-                #         observations = trajectories[robot_id].observations
-                #         moving_actions = trajectories[robot_id].moving_actions
-                #         target_types = trajectories[robot_id].target_types
-                #         rewards = trajectories[robot_id].rewards
-                #
-                #         if moving_critics[robot_id] is not None:
-                #             fitness = moving_critics[robot_id].eval(observations, moving_actions)
-                #         else:
-                #             fitness = sum(rewards)
-                #
-                #         if new_moving_critics[robot_id] is not None:
-                #             new_moving_critics[robot_id].update(observations, moving_actions, rewards)
-                #
-                #         moving_phenotypes[robot_id]["fitness"] = fitness
-                #
-                #         if targetting_critics[robot_id] is not None:
-                #             fitness = targetting_critics[robot_id].eval(observations, target_types)
-                #         else:
-                #             fitness = sum(rewards)
-                #
-                #         if new_targetting_critics[robot_id] is not None:
-                #             new_targetting_critics[robot_id].update(observations, target_types, rewards)
-                #
-                #         targetting_phenotypes[robot_id]["fitness"] = fitness
+                    targetting_phenotypes[robot_id]["fitness"] = fitness
 
 
             for dist, phenotypes in zip(moving_dists, moving_phenotypes_x_robot):
@@ -429,6 +223,14 @@ class Runner:
                     policy.mutate(dist)
                 random.shuffle(phenotypes)
 
+
+            for robot_id in range(n_robots):
+                if moving_critics[robot_id] is not None:
+                    moving_critics[robot_id].advance_process()
+
+
+                if targetting_critics[robot_id] is not None:
+                    targetting_critics[robot_id].advance_process()
 
             self.moving_critics = moving_critics
             self.moving_dists = moving_dists
@@ -457,8 +259,6 @@ class Runner:
 
             # print(critic.learning_rate_scheme.denoms)
         # end for epoch in range(n_epochs):
-        if n_pools > 1:
-            p.close()
 
         score_filename = (
             os.path.join(
