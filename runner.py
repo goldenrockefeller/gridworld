@@ -118,7 +118,7 @@ class Runner:
 
         domain = Domain(n_rows, n_cols, n_steps, n_robots, n_req, n_goals)
 
-        n_epochs = 3
+        n_epochs = 6000
         n_policies = 50
 
         kl_penalty_factor = 10.
