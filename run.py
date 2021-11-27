@@ -16,7 +16,7 @@ def run():
 
 
     mods_to_mix = [
-        (uqhc_l(1, 0.), )
+        (mtc, )
     ]
 
 
