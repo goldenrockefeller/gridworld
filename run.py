@@ -14,9 +14,8 @@ def run():
     n_stats_run_per_process = 1
 
     mods_to_mix = [
-        (uqchc_l(1, 0.), )
+        (uqchc_l(5000, 0.05), )
     ]
-
 
     runners = [
         Runner(experiment_name, setup_combo)
