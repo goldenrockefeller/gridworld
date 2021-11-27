@@ -1136,6 +1136,8 @@ cdef class HybridCritic():
         return evals
 
     def stepped_values(self, observations, actions):
+        cdef HybridInfo info
+
         values = [0. for _ in range(len(observations))]
 
         for step_id in range(len(observations)):
@@ -1146,10 +1148,160 @@ cdef class HybridCritic():
             else:
                 key = (observation, action)
 
-            values[step_id] = self.info[key].stepped_values[step_id]
+            info = self.info[key]
+            values[step_id] = info.stepped_values[step_id]
 
         return values
 
+
+    def stepped_weights(self, observations, actions):
+        weights = [0. for _ in range(len(observations))]
+
+        for step_id in range(len(observations)):
+            observation = observations[step_id]
+            action = actions[step_id]
+            if self.has_only_observation_as_key:
+                key = observation
+            else:
+                key = (observation, action)
+
+            weights[step_id] = self.info[key].stepped_weights[step_id]
+
+        return weights
+
+
+
+cdef class CombinedHybridCritic():
+    cdef public object stepped_critic
+    cdef public dict info
+    cdef public double process_noise
+    cdef public double n_process_steps_elapsed
+    cdef public tuple init_params
+
+    def __init__(self, ref_model):
+        self.info = {key: HybridInfo(len(ref_model[key])) for key in ref_model}
+        self.process_noise = 0.
+        self.n_process_steps_elapsed = 0
+        self.ref_model = ref_model
+        self.trace_sustain = None
+        self.has_only_observation_as_key = False
+
+
+    def copy(self):
+        critic = self.__class__(self.ref_model)
+        critic.info = {key: self.info[key].copy() for key in self.info}
+        critic.process_noise = self.process_noise
+        critic.n_process_steps_elapsed = self.n_process_steps_elapsed
+        critic.ref_model = self.ref_model
+        critic.trace_sustain = self.trace_sustain
+        critic.has_only_observation_as_key = self.has_only_observation_as_key
+
+        return critic
+
+    def update(self, observations, actions, replacement_values, replacement_weights):
+        cdef list targets
+        cdef list target_uncertainties
+        cdef Py_ssize_t step_id
+        cdef object key
+
+        cdef double traj_value
+        cdef double traj_weight
+        cdef double traj_mul
+        cdef double old_uncertainty
+        cdef double new_uncertainty
+
+        cdef double replacement_value
+        cdef double replacement_weight
+
+        cdef double stepped_value
+        cdef double stepped_weight
+        cdef double stepped_mul
+        cdef double last_stepped_value
+        cdef double last_stepped_weight
+        cdef HybridInfo info
+
+        cdef list stepped_values
+        cdef list stepped_weights
+        cdef list stepped_muls
+
+
+        for step_id in range(len(observations)):
+            observation = observations[step_id]
+            action = actions[step_id]
+
+            if self.has_only_observation_as_key:
+                key = observation
+            else:
+                key = (observation, action)
+
+            info = self.info[key]
+            stepped_values = info.stepped_values
+            stepped_weights = info.stepped_weights
+            stepped_muls = info.stepped_muls
+
+            replacement_value = replacement_values[step_id]
+            replacement_weight = replacement_weights[step_id]
+
+            traj_weight = info.traj_weight
+            traj_mul = info.traj_mul
+            traj_value = info.traj_value
+
+            if traj_weight > 0.:
+                old_uncertainty = 1. / traj_weight
+                new_uncertainty = old_uncertainty + self.process_noise * (self.n_process_steps_elapsed - info.traj_last_visited)
+                traj_mul += log(old_uncertainty / new_uncertainty)
+                traj_weight = 1. / new_uncertainty
+
+
+            stepped_value = stepped_values[step_id]
+            stepped_weight = stepped_weights[step_id]
+            stepped_mul = stepped_muls[step_id]
+            stepped_weight *= exp(traj_mul - stepped_mul)
+            stepped_mul = traj_mul
+
+            last_stepped_value = stepped_value
+            last_stepped_weight = stepped_weight
+
+            stepped_value = replacement_value
+            stepped_weight = replacement_weight
+
+            traj_value = (
+                (traj_value * traj_weight - last_stepped_value * last_stepped_weight + stepped_value * stepped_weight)
+                / (traj_weight -  last_stepped_weight + stepped_weight)
+            )
+            traj_weight = traj_weight - last_stepped_weight + stepped_weight
+
+            info.traj_mul = traj_mul
+            info.traj_value = traj_value
+            info.traj_weight = traj_weight
+            stepped_values[step_id] = stepped_value
+            stepped_weights[step_id] = stepped_weight
+            stepped_muls[step_id] = stepped_mul
+
+            info.traj_last_visited = self.n_process_steps_elapsed
+
+    def advance_process(self):
+        self.n_process_steps_elapsed += 1
+
+    def eval(self, observations, actions):
+        return list_sum(self.step_evals(observations, actions))
+
+
+    def step_evals(self, list observations, list actions):
+
+        evals = [0. for _ in range(len(observations))]
+
+        for step_id in range(len(observations)):
+            observation = observations[step_id]
+            action = actions[step_id]
+            if self.has_only_observation_as_key:
+                key = observation
+            else:
+                key = (observation, action)
+
+            evals[step_id] = self.info[key].traj_value
+
+        return evals
 
 class AveragedTrajCritic(TrajCritic):
     def eval(self, observations, actions):
@@ -1162,6 +1314,10 @@ class AveragedTrajCritic(TrajCritic):
 class AveragedHybridCritic(HybridCritic):
     def eval(self, observations, actions):
         return HybridCritic.eval(self, observations, actions) / len(observations)
+
+class AveragedCombinedHybridCritic(CombinedHybridCritic):
+    def eval(self, observations, actions):
+        return CombinedHybridCritic.eval(self, observations, actions) / len(observations)
 
 class MidTrajCritic(AveragedTrajCritic):
 
@@ -1309,10 +1465,10 @@ class QTrajCritic(AveragedTrajCritic):
 
 class QHybridCritic(AveragedHybridCritic):
     def targets(self, observations, actions,rewards):
-
+        n_steps = len(observations)
         stepped_values = self.stepped_values(observations, actions)
         targets = apply_eligibility_trace(rewards, stepped_values, self.trace_sustain)
-        target_uncertainties = [1. for i in range(len(observations))]
+        target_uncertainties = list(reversed([(i+1) / n_steps  for i in range(n_steps)]))
 
         return targets, target_uncertainties
 
@@ -1442,10 +1598,11 @@ class VHybridCritic(AveragedHybridCritic):
         self.has_only_observation_as_key = True
 
     def targets(self, observations, actions,rewards):
+        n_steps = len(observations)
 
         stepped_values = self.stepped_values(observations, actions)
         targets = apply_eligibility_trace(rewards, stepped_values, self.trace_sustain)
-        target_uncertainties = [1. for i in range(len(observations))]
+        target_uncertainties = list(reversed([(i+1) / n_steps  for i in range(n_steps)]))
 
         return targets, target_uncertainties
 
@@ -1568,10 +1725,10 @@ class UHybridCritic(AveragedHybridCritic):
         self.has_only_observation_as_key = True
 
     def targets(self, observations, actions,rewards):
-
+        n_steps = len(observations)
         stepped_values = self.stepped_values(observations, actions)
         targets = apply_reverse_eligibility_trace(rewards, stepped_values, self.trace_sustain)
-        target_uncertainties = [1. for i in range(len(observations))]
+        target_uncertainties = [(i+1) / n_steps  for i in range(n_steps)]
 
         return targets, target_uncertainties
 
@@ -1745,6 +1902,8 @@ class ATrajCritic(ABaseCritic):
         self.q_critic = QTrajCritic(ref_model_q)
         self.v_critic = VTrajCritic(ref_model_v)
 
+
+
 #
 # class ASteppedCritic(ABaseCritic):
 #     def __init__(self, ref_model_q, ref_model_v):
@@ -1758,6 +1917,65 @@ class AHybridCritic(ABaseCritic):
         self.q_critic = QHybridCritic(ref_model_q)
         self.v_critic = VHybridCritic(ref_model_v)
 
+
+class ACombinedHybridCritic:
+    def __init__(self, ref_model_q, ref_model_v):
+        self.q_critic = QHybridCritic(ref_model_q)
+        self.v_critic = VHybridCritic(ref_model_v)
+        self.core = AveragedCombinedHybridCritic(ref_model_q)
+
+    def copy(self):
+        critic = self.__class__(self.q_critic.ref_model, self.v_critic.ref_model)
+        critic.v_critic = self.v_critic.copy()
+        critic.q_critic = self.q_critic.copy()
+        critic.core = self.core.copy()
+
+        return critic
+
+    def update(self, observations, actions, rewards):
+        self.v_critic.update(observations, actions, rewards)
+        self.q_critic.update(observations, actions, rewards)
+
+        v_values = self.v_critic.stepped_values(observations, actions)
+        v_weights = self.v_critic.stepped_weights(observations, actions)
+        q_values = self.q_critic.stepped_values(observations, actions)
+        q_weights = self.q_critic.stepped_weights(observations, actions)
+
+        replacement_values = [0.] * len(v_values)
+        replacement_weights = [0.] * len(v_weights)
+
+        for i in range(len(v_values)):
+            replacement_values[i] = q_values[i] - v_values[i]
+
+            if q_weights[i] == 0. or v_weights[i] == 0.:
+                replacement_weights[i] = 0.
+            else:
+                replacement_weights[i] = 1./ (1./q_weights[i] + 1./ v_weights[i])
+
+        self.core.update(observations, actions, replacement_values, replacement_weights)
+
+    def eval(self, observations, actions):
+        return list_sum(self.step_evals(observations, actions)) / len(observations)
+
+    def step_evals(self, observations, actions):
+        return self.core.step_evals(observations, actions)
+
+    def advance_process(self):
+        self.v_critic.advance_process()
+        self.q_critic.advance_process()
+        self.core.advance_process()
+
+
+    @property
+    def trace_sustain(self):
+        raise RuntimeError()
+
+    @trace_sustain.setter
+    def trace_sustain(self, val):
+        a = self.v_critic.trace_sustain
+        b = self.q_critic.trace_sustain
+        self.v_critic.trace_sustain = val
+        self.q_critic.trace_sustain = val
 
 
 class UqBaseCritic():
@@ -1830,6 +2048,67 @@ class UqHybridCritic(UqBaseCritic):
     def __init__(self, ref_model_q, ref_model_u):
         self.q_critic = QHybridCritic(ref_model_q)
         self.u_critic = UHybridCritic(ref_model_u)
+
+
+
+class UqCombinedHybridCritic:
+    def __init__(self, ref_model_q, ref_model_u):
+        self.q_critic = QHybridCritic(ref_model_q)
+        self.u_critic = UHybridCritic(ref_model_u)
+        self.core = AveragedCombinedHybridCritic(ref_model_q)
+
+    def copy(self):
+        critic = self.__class__(self.q_critic.ref_model, self.u_critic.ref_model)
+        critic.u_critic = self.u_critic.copy()
+        critic.q_critic = self.q_critic.copy()
+        critic.core = self.core.copy()
+
+        return critic
+
+    def update(self, observations, actions, rewards):
+        self.u_critic.update(observations, actions, rewards)
+        self.q_critic.update(observations, actions, rewards)
+
+        u_values = self.u_critic.stepped_values(observations, actions)
+        u_weights = self.u_critic.stepped_weights(observations, actions)
+        q_values = self.q_critic.stepped_values(observations, actions)
+        q_weights = self.q_critic.stepped_weights(observations, actions)
+
+        replacement_values = [0.] * len(u_values)
+        replacement_weights = [0.] * len(u_weights)
+
+        for i in range(len(u_values)):
+            replacement_values[i] = q_values[i] + u_values[i]
+
+            if q_weights[i] == 0. or u_weights[i] == 0.:
+                replacement_weights[i] = 0.
+            else:
+                replacement_weights[i] = 1./ (1./q_weights[i] + 1./ u_weights[i])
+
+        self.core.update(observations, actions, replacement_values, replacement_weights)
+
+    def eval(self, observations, actions):
+        return list_sum(self.step_evals(observations, actions)) / len(observations)
+
+    def step_evals(self, observations, actions):
+        return self.core.step_evals(observations, actions)
+
+    def advance_process(self):
+        self.u_critic.advance_process()
+        self.q_critic.advance_process()
+        self.core.advance_process()
+
+
+    @property
+    def trace_sustain(self):
+        raise RuntimeError()
+
+    @trace_sustain.setter
+    def trace_sustain(self, val):
+        a = self.u_critic.trace_sustain
+        b = self.q_critic.trace_sustain
+        self.u_critic.trace_sustain = val
+        self.q_critic.trace_sustain = val
 
 
 

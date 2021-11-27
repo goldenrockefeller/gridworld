@@ -330,6 +330,36 @@ def uqhc_l(a, b):
     uqhc_l_inner.__name__ = f"uqhc_{a:.0f}_{b}"
     return uqhc_l_inner
 
+def uqchc(args):
+    n_steps = args["n_steps"]
+
+    q_moving_model = moving_stepped_q_model(n_steps)
+    u_moving_model = stepped_v_model(n_steps)
+    args["moving_critic"] = UqCombinedHybridCritic(q_moving_model, u_moving_model)
+    args["moving_critic"].u_critic.process_noise = args["process_noise"]
+    args["moving_critic"].q_critic.process_noise = args["process_noise"]
+    args["moving_critic"].core.process_noise = args["process_noise"]
+    args["moving_critic"].trace_sustain = 1.
+
+
+    q_targetting_model = targetting_stepped_q_model(n_steps)
+    u_targetting_model = stepped_v_model(n_steps)
+    args["targetting_critic"] = UqCombinedHybridCritic(q_targetting_model, u_targetting_model)
+    args["targetting_critic"].u_critic.process_noise = args["process_noise"]
+    args["targetting_critic"].q_critic.process_noise = args["process_noise"]
+    args["targetting_critic"].core.process_noise = args["process_noise"]
+    args["targetting_critic"].trace_sustain = 1.
+
+
+def uqchc_l(a, b):
+    def uqchc_l_inner(args):
+        uqchc(args)
+        args["trace_horizon_hist"] = (a, b)
+
+    uqchc_l_inner.__name__ = f"uqchc_{a:.0f}_{b}"
+    return uqchc_l_inner
+
+
 
 #
 # def uqhc_l(trace_horizon):
@@ -513,6 +543,35 @@ def ahc_l(a, b):
 
     ahc_l_inner.__name__ = f"ahc_{a:.0f}_{b}"
     return ahc_l_inner
+
+def achc(args):
+    n_steps = args["n_steps"]
+
+    q_moving_model = moving_stepped_q_model(n_steps)
+    v_moving_model = stepped_v_model(n_steps)
+    args["moving_critic"] = ACombinedHybridCritic(q_moving_model, v_moving_model)
+    args["moving_critic"].v_critic.process_noise = args["process_noise"]
+    args["moving_critic"].q_critic.process_noise = args["process_noise"]
+    args["moving_critic"].core.process_noise = args["process_noise"]
+    args["moving_critic"].trace_sustain = 1.
+
+
+    q_targetting_model = targetting_stepped_q_model(n_steps)
+    v_targetting_model = stepped_v_model(n_steps)
+    args["targetting_critic"] = ACombinedHybridCritic(q_targetting_model, v_targetting_model)
+    args["targetting_critic"].v_critic.process_noise = args["process_noise"]
+    args["targetting_critic"].q_critic.process_noise = args["process_noise"]
+    args["targetting_critic"].core.process_noise = args["process_noise"]
+    args["targetting_critic"].trace_sustain = 1.
+
+
+def achc_l(a, b):
+    def achc_l_inner(args):
+        achc(args)
+        args["trace_horizon_hist"] = (a, b)
+
+    achc_l_inner.__name__ = f"achc_{a:.0f}_{b}"
+    return achc_l_inner
 
 # def ahc_l(trace_horizon):
 #
