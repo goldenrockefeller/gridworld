@@ -147,12 +147,24 @@ def qtc(args):
     args["moving_critic"] = QTrajCritic(moving_model)
     args["moving_critic"].learning_rate_scheme = TrajKalmanLearningRateScheme(args["moving_critic"].core)
     args["moving_critic"].learning_rate_scheme.process_noise = args["process_noise"]
+    args["moving_critic"].trace_sustain = 1.
 
 
     targetting_model = targetting_traj_q_model(n_steps)
     args["targetting_critic"] = QTrajCritic(targetting_model)
     args["targetting_critic"].learning_rate_scheme = TrajKalmanLearningRateScheme(args["targetting_critic"].core)
     args["targetting_critic"].learning_rate_scheme.process_noise = args["process_noise"]
+    args["targetting_critic"].trace_sustain = 1.
+
+def qtc_l(a, b):
+    def qtc_l_inner(args):
+        qtc(args)
+        args["trace_horizon_hist"] = (a, b)
+
+    qtc_l_inner.__name__ = f"qtc_{a:.0f}_{b}"
+    return qtc_l_inner
+
+
 #
 #
 # def qsc(args):
@@ -174,11 +186,20 @@ def qhc(args):
     moving_model = moving_stepped_q_model(n_steps)
     args["moving_critic"] = QHybridCritic(moving_model)
     args["moving_critic"].process_noise = args["process_noise"]
+    args["moving_critic"].trace_sustain = 1.
 
     targetting_model = targetting_stepped_q_model(n_steps)
     args["targetting_critic"] = QHybridCritic(targetting_model)
     args["targetting_critic"].process_noise = args["process_noise"]
+    args["targetting_critic"].trace_sustain = 1.
 
+def qhc_l(a, b):
+    def qhc_l_inner(args):
+        qhc(args)
+        args["trace_horizon_hist"] = (a, b)
+
+    qhc_l_inner.__name__ = f"qhc_{a:.0f}_{b}"
+    return qhc_l_inner
 
 # def qhc_l(trace_horizon):
 #
@@ -243,6 +264,7 @@ def uqtc(args):
     args["moving_critic"].q_critic.learning_rate_scheme = TrajKalmanLearningRateScheme(args["moving_critic"].q_critic.core)
     args["moving_critic"].u_critic.learning_rate_scheme.process_noise = args["process_noise"]
     args["moving_critic"].q_critic.learning_rate_scheme.process_noise = args["process_noise"]
+    args["moving_critic"].trace_sustain = 1.
 
 
     q_targetting_model = targetting_traj_q_model(n_steps)
@@ -252,6 +274,17 @@ def uqtc(args):
     args["targetting_critic"].q_critic.learning_rate_scheme = TrajKalmanLearningRateScheme(args["targetting_critic"].q_critic.core)
     args["targetting_critic"].u_critic.learning_rate_scheme.process_noise = args["process_noise"]
     args["targetting_critic"].q_critic.learning_rate_scheme.process_noise = args["process_noise"]
+    args["targetting_critic"].trace_sustain = 1.
+
+
+def uqtc_l(a, b):
+    def uqtc_l_inner(args):
+        uqtc(args)
+        args["trace_horizon_hist"] = (a, b)
+
+    uqtc_l_inner.__name__ = f"uqtc_{a:.0f}_{b}"
+    return uqtc_l_inner
+
 
 # def uqsc(args):
 #     n_steps = args["n_steps"]
@@ -278,12 +311,25 @@ def uqhc(args):
     q_moving_model = moving_stepped_q_model(n_steps)
     u_moving_model = stepped_v_model(n_steps)
     args["moving_critic"] = UqHybridCritic(q_moving_model, u_moving_model)
-    args["moving_critic"].process_noise = args["process_noise"]
+    args["moving_critic"].u_critic.process_noise = args["process_noise"]
+    args["moving_critic"].q_critic.process_noise = args["process_noise"]
+    args["moving_critic"].trace_sustain = 1.
 
     q_targetting_model = targetting_stepped_q_model(n_steps)
     u_targetting_model = stepped_v_model(n_steps)
     args["targetting_critic"] = UqHybridCritic(q_targetting_model, u_targetting_model)
-    args["targetting_critic"].process_noise = args["process_noise"]
+    args["targetting_critic"].u_critic.process_noise = args["process_noise"]
+    args["targetting_critic"].q_critic.process_noise = args["process_noise"]
+    args["targetting_critic"].trace_sustain = 1.
+
+def uqhc_l(a, b):
+    def uqhc_l_inner(args):
+        uqhc(args)
+        args["trace_horizon_hist"] = (a, b)
+
+    uqhc_l_inner.__name__ = f"uqhc_{a:.0f}_{b}"
+    return uqhc_l_inner
+
 
 #
 # def uqhc_l(trace_horizon):
@@ -401,6 +447,7 @@ def atc(args):
     args["moving_critic"].q_critic.learning_rate_scheme = TrajKalmanLearningRateScheme(args["moving_critic"].q_critic.core)
     args["moving_critic"].v_critic.learning_rate_scheme.process_noise = args["process_noise"]
     args["moving_critic"].q_critic.learning_rate_scheme.process_noise = args["process_noise"]
+    args["moving_critic"].trace_sustain = 1.
 
     q_targetting_model = targetting_traj_q_model(n_steps)
     v_targetting_model = traj_v_model(n_steps)
@@ -409,6 +456,16 @@ def atc(args):
     args["targetting_critic"].q_critic.learning_rate_scheme = TrajKalmanLearningRateScheme(args["targetting_critic"].q_critic.core)
     args["targetting_critic"].v_critic.learning_rate_scheme.process_noise = args["process_noise"]
     args["targetting_critic"].q_critic.learning_rate_scheme.process_noise = args["process_noise"]
+    args["targetting_critic"].trace_sustain = 1.
+
+def atc_l(a, b):
+    def atc_l_inner(args):
+        atc(args)
+        args["trace_horizon_hist"] = (a, b)
+
+    atc_l_inner.__name__ = f"atc_{a:.0f}_{b}"
+    return atc_l_inner
+
 #
 # def asc(args):
 #     n_steps = args["n_steps"]
@@ -436,14 +493,26 @@ def ahc(args):
     q_moving_model = moving_stepped_q_model(n_steps)
     v_moving_model = stepped_v_model(n_steps)
     args["moving_critic"] = AHybridCritic(q_moving_model, v_moving_model)
-    args["moving_critic"].process_noise = args["process_noise"]
+    args["moving_critic"].v_critic.process_noise = args["process_noise"]
+    args["moving_critic"].q_critic.process_noise = args["process_noise"]
+    args["moving_critic"].trace_sustain = 1.
 
 
     q_targetting_model = targetting_stepped_q_model(n_steps)
     v_targetting_model = stepped_v_model(n_steps)
     args["targetting_critic"] = AHybridCritic(q_targetting_model, v_targetting_model)
-    args["targetting_critic"].process_noise = args["process_noise"]
+    args["targetting_critic"].v_critic.process_noise = args["process_noise"]
+    args["targetting_critic"].q_critic.process_noise = args["process_noise"]
+    args["targetting_critic"].trace_sustain = 1.
 
+
+def ahc_l(a, b):
+    def ahc_l_inner(args):
+        ahc(args)
+        args["trace_horizon_hist"] = (a, b)
+
+    ahc_l_inner.__name__ = f"ahc_{a:.0f}_{b}"
+    return ahc_l_inner
 
 # def ahc_l(trace_horizon):
 #

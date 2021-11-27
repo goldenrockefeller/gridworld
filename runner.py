@@ -91,7 +91,8 @@ class Runner:
             "n_steps" : 1000,
             "n_rows" : 10,
             "n_cols" : 10,
-            "process_noise" : 1./ 1000.
+            "process_noise" : 1./ 1000.,
+            "trace_horizon_hist" : None
         }
 
         for setup_func in self.setup_funcs:
@@ -111,15 +112,34 @@ class Runner:
         n_rows = args["n_rows"]
         n_cols = args["n_cols"]
 
-        if "trace_schedule" in args:
-            trace_schedule = args["trace_schedule"]
-        else:
-            trace_schedule = None
 
         domain = Domain(n_rows, n_cols, n_steps, n_robots, n_req, n_goals)
 
         n_epochs = 6000
         n_policies = 50
+
+        if args["trace_horizon_hist"] is not None:
+            a = args["trace_horizon_hist"][0]
+            b = args["trace_horizon_hist"][1]
+
+            trace_horizons = [0.] * n_epochs
+
+            for step_id in range(n_epochs):
+                x = step_id
+                if b * x == 0:
+                    trace_horizons[step_id] = float("inf")
+                else:
+                    trace_horizons[step_id] = (a + b * x) / (b * x)
+
+            trace_schedule = [0.] * len(trace_horizons)
+            for step_id, trace_horizon in enumerate(trace_horizons):
+                if trace_horizon == float("inf"):
+                    trace_schedule[step_id] = 1.
+                else:
+                    trace_schedule[step_id] = (trace_horizon - 1.) / (trace_horizon)
+        else:
+            trace_schedule = None
+
 
         kl_penalty_factor = 10.
 

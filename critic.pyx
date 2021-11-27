@@ -34,124 +34,157 @@ def list_multiply(my_list, val):
 
     return my_list
 
-cdef fast_weighted_average(double v0, double u0, double v1, double u1):
-    cdef double total = 0.
-    cdef double total_weight = 0.
-    cdef double total_uncertainty = 0.
-    cdef double ratio_0 = 1. / u0
 
-    if u0 != float("inf"):
-        weight = 1. / u0
-
-        total += v0 * weight
-        total_weight += weight
-        total_uncertainty += u0 * weight * weight
-
-    if u1 != float("inf"):
-        weight = 1. / u1
-
-        total += v1 * weight
-        total_weight += weight
-        total_uncertainty += u1 * weight * weight
-
-
-
-    ratio_0 = ratio_0 / total_weight
-    total /= total_weight
-    total_uncertainty /= total_weight * total_weight
-
-    return total, total_uncertainty, ratio_0
-
-
-def weighted_average(value_uncertainties):
-    total = 0.
-    total_weight = 0.
-    total_uncertainty = 0.
-    ratio_0 = 1. / value_uncertainties[0][1]
-
-
-    for value, uncertainty in value_uncertainties:
-        if uncertainty != float("inf"):
-            weight = 1. / uncertainty
-
-            total += value * weight
-            total_weight += weight
-            total_uncertainty += uncertainty * weight * weight
-
-
-
-    ratio_0 = ratio_0 / total_weight
-    total /= total_weight
-    total_uncertainty /= total_weight * total_weight
-
-    return total, total_uncertainty, ratio_0
-
-def get_r_err(n_steps, cov):
-    vY = 0.
-    err = 0.
-    mul = 0.
-    for i in range(n_steps):
-        vY += 1 + 2 * mul * cov
-        mul += 1
-
-    return 1./ vY
-
-
-
-def apply_smart_eligibility_trace(rewards, values, uncertainties, cov = 0.):
-    trace = 0.
-    trace_uncertainty = 0.
+def apply_eligibility_trace(rewards, values, trace_sustain):
+    targets = [0. for i in range(len(rewards))]
     n_steps = len(rewards)
-    last_step_id = len(rewards) - 1
-    targets = [ 0. for i in range(n_steps)]
-    targets_uncertainties = [ 0. for i in range(n_steps)]
-    r_err = get_r_err(n_steps, cov)
+    last_step_id = n_steps - 1
+
     for step_id in reversed(range(n_steps)):
         if step_id == last_step_id:
-            trace = rewards[step_id]
-            trace_uncertainty = r_err
-            ratio = 1.
-            mul = 1.
+            targets[last_step_id] = rewards[last_step_id]
         else:
-            pretarget = rewards[step_id] + values[step_id + 1]
-            pretarget_uncertainty = 1 / n_steps + uncertainties[step_id + 1]
-            trace += rewards[step_id]
-            trace_uncertainty += r_err + 2 * cov * mul * r_err
-            trace, trace_uncertainty, ratio = weighted_average(((trace, trace_uncertainty), (pretarget,  pretarget_uncertainty)))
-            mul *= ratio
-            mul += 1
-        targets[step_id] = trace
-        targets_uncertainties[step_id] = trace_uncertainty
+            targets[step_id] = (
+                (1 - trace_sustain) *(rewards[step_id] + values[step_id + 1])
+                + trace_sustain * (rewards[step_id] + targets[step_id+1])
+            )
 
-    return targets, targets_uncertainties
+    return targets
 
-def apply_smart_reverse_eligibility_trace(rewards, values, uncertainties, cov = 0.):
-    trace = 0.
-    trace_uncertainty = 0.
-    n_steps = len(rewards)
-    targets = [ 0. for i in range(n_steps)]
-    targets_uncertainties = [ 0. for i in range(n_steps)]
-    r_err = get_r_err(n_steps, cov)
-    for step_id in range(n_steps):
-        if step_id == 0.:
-            trace = 0.
-            trace_uncertainty = 0.
-            mul = 0.
+
+def apply_reverse_eligibility_trace(rewards, values, trace_sustain):
+    targets = [0. for i in range(len(rewards))]
+
+    for step_id in range(len(rewards)):
+        if step_id == 0:
+            targets[step_id] = 0.
         else:
-            pretarget = rewards[step_id - 1] + values[step_id - 1]
-            pretarget_uncertainty = r_err + uncertainties[step_id - 1]
+            targets[step_id] = (
+                (1 - trace_sustain) *(rewards[step_id - 1] + values[step_id - 1])
+                + trace_sustain * (rewards[step_id - 1] + targets[step_id-1])
+            )
 
-            trace += rewards[step_id - 1]
-            trace_uncertainty += r_err + 2 * cov * mul * r_err
-            trace, targets_uncertainty, ratio = weighted_average(((trace, trace_uncertainty), (pretarget, pretarget_uncertainty)))
-            mul *= ratio
-            mul += 1
-        targets[step_id] = trace
-        if step_id == 0.:
-            targets_uncertainties[step_id] = 1 / n_steps
-        else:
-            targets_uncertainties[step_id] = trace_uncertainty
-    return targets, targets_uncertainties
+    return targets
+
+
+# cdef fast_weighted_average(double v0, double u0, double v1, double u1):
+#     cdef double total = 0.
+#     cdef double total_weight = 0.
+#     cdef double total_uncertainty = 0.
+#     cdef double ratio_0 = 1. / u0
+#
+#     if u0 != float("inf"):
+#         weight = 1. / u0
+#
+#         total += v0 * weight
+#         total_weight += weight
+#         total_uncertainty += u0 * weight * weight
+#
+#     if u1 != float("inf"):
+#         weight = 1. / u1
+#
+#         total += v1 * weight
+#         total_weight += weight
+#         total_uncertainty += u1 * weight * weight
+#
+#
+#
+#     ratio_0 = ratio_0 / total_weight
+#     total /= total_weight
+#     total_uncertainty /= total_weight * total_weight
+#
+#     return total, total_uncertainty, ratio_0
+#
+#
+# def weighted_average(value_uncertainties):
+#     total = 0.
+#     total_weight = 0.
+#     total_uncertainty = 0.
+#     ratio_0 = 1. / value_uncertainties[0][1]
+#
+#
+#     for value, uncertainty in value_uncertainties:
+#         if uncertainty != float("inf"):
+#             weight = 1. / uncertainty
+#
+#             total += value * weight
+#             total_weight += weight
+#             total_uncertainty += uncertainty * weight * weight
+#
+#
+#
+#     ratio_0 = ratio_0 / total_weight
+#     total /= total_weight
+#     total_uncertainty /= total_weight * total_weight
+#
+#     return total, total_uncertainty, ratio_0
+#
+# def get_r_err(n_steps, cov):
+#     vY = 0.
+#     err = 0.
+#     mul = 0.
+#     for i in range(n_steps):
+#         vY += 1 + 2 * mul * cov
+#         mul += 1
+#
+#     return 1./ vY
+#
+#
+#
+# def apply_smart_eligibility_trace(rewards, values, uncertainties, cov = 0.):
+#     trace = 0.
+#     trace_uncertainty = 0.
+#     n_steps = len(rewards)
+#     last_step_id = len(rewards) - 1
+#     targets = [ 0. for i in range(n_steps)]
+#     targets_uncertainties = [ 0. for i in range(n_steps)]
+#     r_err = get_r_err(n_steps, cov)
+#     for step_id in reversed(range(n_steps)):
+#         if step_id == last_step_id:
+#             trace = rewards[step_id]
+#             trace_uncertainty = r_err
+#             ratio = 1.
+#             mul = 1.
+#         else:
+#             pretarget = rewards[step_id] + values[step_id + 1]
+#             pretarget_uncertainty = 1 / n_steps + uncertainties[step_id + 1]
+#             trace += rewards[step_id]
+#             trace_uncertainty += r_err + 2 * cov * mul * r_err
+#             trace, trace_uncertainty, ratio = weighted_average(((trace, trace_uncertainty), (pretarget,  pretarget_uncertainty)))
+#             mul *= ratio
+#             mul += 1
+#         targets[step_id] = trace
+#         targets_uncertainties[step_id] = trace_uncertainty
+#
+#     return targets, targets_uncertainties
+#
+# def apply_smart_reverse_eligibility_trace(rewards, values, uncertainties, cov = 0.):
+#     trace = 0.
+#     trace_uncertainty = 0.
+#     n_steps = len(rewards)
+#     targets = [ 0. for i in range(n_steps)]
+#     targets_uncertainties = [ 0. for i in range(n_steps)]
+#     r_err = get_r_err(n_steps, cov)
+#     for step_id in range(n_steps):
+#         if step_id == 0.:
+#             trace = 0.
+#             trace_uncertainty = 0.
+#             mul = 0.
+#         else:
+#             pretarget = rewards[step_id - 1] + values[step_id - 1]
+#             pretarget_uncertainty = r_err + uncertainties[step_id - 1]
+#
+#             trace += rewards[step_id - 1]
+#             trace_uncertainty += r_err + 2 * cov * mul * r_err
+#             trace, targets_uncertainty, ratio = weighted_average(((trace, trace_uncertainty), (pretarget, pretarget_uncertainty)))
+#             mul *= ratio
+#             mul += 1
+#         targets[step_id] = trace
+#         if step_id == 0.:
+#             targets_uncertainties[step_id] = 1 / n_steps
+#         else:
+#             targets_uncertainties[step_id] = trace_uncertainty
+#     return targets, targets_uncertainties
 
 
 # def apply_eligibility_trace(deltas, trace_sustain):
@@ -851,11 +884,15 @@ class TrajCritic():
         self.learning_rate_scheme = ReducedLearningRateScheme()
         self.core = {key: 0. for key in ref_model}
         self.has_only_observation_as_key = False
+        self.trace_sustain = None
+        self.ref_model = ref_model
 
     def copy(self):
         critic = self.__class__(self.core)
         critic.learning_rate_scheme = self.learning_rate_scheme.copy()
         critic.core = self.core.copy()
+        critic.trace_sustain = self.trace_sustain
+        critic.ref_model = self.ref_model
 
         return critic
 
@@ -879,46 +916,7 @@ class TrajCritic():
     def advance_process(self):
         self.learning_rate_scheme.advance_process()
 
-    # @property
-    # def time_horizon(self):
-    #     return self.learning_rate_scheme.time_horizon
-    #
-    # @time_horizon.setter
-    # def time_horizon(self, val):
-    #     self.learning_rate_scheme.time_horizon = val
 
-class SteppedCritic():
-    def __init__(self, ref_model):
-        self.learning_rate_scheme = BasicLearningRateScheme()
-        self.core = {key: [0. for _ in range(len(ref_model[key]))] for key in ref_model}
-        self.has_only_observation_as_key = False
-
-    def copy(self):
-        critic = self.__class__(self.core)
-        critic.learning_rate_scheme = self.learning_rate_scheme.copy()
-        critic.core = {key : self.core[key].copy() for key in self.core.keys()}
-
-        return critic
-
-    def eval(self, observations, actions):
-        return list_sum(self.step_evals(observations, actions))
-
-    def step_evals(self, observations, actions):
-        evals = [0. for _ in range(len(observations))]
-        for step_id in range(len(observations)):
-            observation = observations[step_id]
-            action = actions[step_id]
-
-            if self.has_only_observation_as_key:
-                key = observation
-            else:
-                key = (observation, action)
-
-            evals[step_id] = self.core[key][step_id]
-        return evals
-
-    def advance_process(self):
-        self.learning_rate_scheme.advance_process()
 
     # @property
     # def time_horizon(self):
@@ -927,6 +925,47 @@ class SteppedCritic():
     # @time_horizon.setter
     # def time_horizon(self, val):
     #     self.learning_rate_scheme.time_horizon = val
+
+# class SteppedCritic():
+#     def __init__(self, ref_model):
+#         self.learning_rate_scheme = BasicLearningRateScheme()
+#         self.core = {key: [0. for _ in range(len(ref_model[key]))] for key in ref_model}
+#         self.has_only_observation_as_key = False
+#
+#     def copy(self):
+#         critic = self.__class__(self.core)
+#         critic.learning_rate_scheme = self.learning_rate_scheme.copy()
+#         critic.core = {key : self.core[key].copy() for key in self.core.keys()}
+#
+#         return critic
+#
+#     def eval(self, observations, actions):
+#         return list_sum(self.step_evals(observations, actions))
+#
+#     def step_evals(self, observations, actions):
+#         evals = [0. for _ in range(len(observations))]
+#         for step_id in range(len(observations)):
+#             observation = observations[step_id]
+#             action = actions[step_id]
+#
+#             if self.has_only_observation_as_key:
+#                 key = observation
+#             else:
+#                 key = (observation, action)
+#
+#             evals[step_id] = self.core[key][step_id]
+#         return evals
+#
+#     def advance_process(self):
+#         self.learning_rate_scheme.advance_process()
+#
+#     # @property
+#     # def time_horizon(self):
+#     #     return self.learning_rate_scheme.time_horizon
+#     #
+#     # @time_horizon.setter
+#     # def time_horizon(self, val):
+#     #     self.learning_rate_scheme.time_horizon = val
 
 cdef class HybridInfo:
     cdef public double traj_value
@@ -947,6 +986,7 @@ cdef class HybridInfo:
         self.stepped_weights = [0. for _ in range(size)]
         self.stepped_muls = [0. for _ in range(size)]
         self.size = size
+
 
     def copy(self):
         info = self.__class__(self.size)
@@ -973,14 +1013,19 @@ cdef class HybridCritic():
         self.info = {key: HybridInfo(len(ref_model[key])) for key in ref_model}
         self.process_noise = 0.
         self.n_process_steps_elapsed = 0
-        self.init_params = (ref_model, )
+        self.ref_model = ref_model
+        self.trace_sustain = None
+        self.has_only_observation_as_key = False
+
 
     def copy(self):
-        critic = self.__class__(*self.init_params)
+        critic = self.__class__(self.ref_model)
         critic.info = {key: self.info[key].copy() for key in self.info}
         critic.process_noise = self.process_noise
         critic.n_process_steps_elapsed = self.n_process_steps_elapsed
-        critic.init_params = self.init_params
+        critic.ref_model = self.ref_model
+        critic.trace_sustain = self.trace_sustain
+        critic.has_only_observation_as_key = self.has_only_observation_as_key
 
         return critic
 
@@ -988,7 +1033,7 @@ cdef class HybridCritic():
         cdef list targets
         cdef list target_uncertainties
         cdef Py_ssize_t step_id
-        cdef tuple key
+        cdef object key
         cdef double target_value
         cdef double target_weight
 
@@ -1016,7 +1061,10 @@ cdef class HybridCritic():
             observation = observations[step_id]
             action = actions[step_id]
 
-            key = (observation, action)
+            if self.has_only_observation_as_key:
+                key = observation
+            else:
+                key = (observation, action)
 
             info = self.info[key]
             stepped_values = info.stepped_values
@@ -1078,18 +1126,38 @@ cdef class HybridCritic():
         for step_id in range(len(observations)):
             observation = observations[step_id]
             action = actions[step_id]
-            key = (observation, action)
+            if self.has_only_observation_as_key:
+                key = observation
+            else:
+                key = (observation, action)
+
             evals[step_id] = self.info[key].traj_value
 
         return evals
+
+    def stepped_values(self, observations, actions):
+        values = [0. for _ in range(len(observations))]
+
+        for step_id in range(len(observations)):
+            observation = observations[step_id]
+            action = actions[step_id]
+            if self.has_only_observation_as_key:
+                key = observation
+            else:
+                key = (observation, action)
+
+            values[step_id] = self.info[key].stepped_values[step_id]
+
+        return values
+
 
 class AveragedTrajCritic(TrajCritic):
     def eval(self, observations, actions):
         return TrajCritic.eval(self, observations, actions) / len(observations)
 
-class AveragedSteppedCritic(SteppedCritic):
-    def eval(self, observations, actions):
-        return SteppedCritic.eval(self, observations, actions) / len(observations)
+# class AveragedSteppedCritic(SteppedCritic):
+#     def eval(self, observations, actions):
+#         return SteppedCritic.eval(self, observations, actions) / len(observations)
 
 class AveragedHybridCritic(HybridCritic):
     def eval(self, observations, actions):
@@ -1173,23 +1241,23 @@ class InexactMidTrajCritic(AveragedTrajCritic):
             self.core[(observation, action)] += delta
 
 
-class InexactMidSteppedCritic(AveragedSteppedCritic):
-    def update(self, observations, actions, rewards):
-        n_steps = len(observations)
-
-        fitness = list_sum(rewards)
-
-        step_evals = self.step_evals(observations, actions)
-
-        learning_rates = self.learning_rate_scheme.learning_rates(observations, actions)
-
-        for step_id in range(n_steps):
-            observation = observations[step_id]
-            action = actions[step_id]
-            estimate = step_evals[step_id]
-            error = fitness - estimate
-            delta = error * learning_rates[step_id]
-            self.core[(observation, action)][step_id] += delta
+# class InexactMidSteppedCritic(AveragedSteppedCritic):
+#     def update(self, observations, actions, rewards):
+#         n_steps = len(observations)
+#
+#         fitness = list_sum(rewards)
+#
+#         step_evals = self.step_evals(observations, actions)
+#
+#         learning_rates = self.learning_rate_scheme.learning_rates(observations, actions)
+#
+#         for step_id in range(n_steps):
+#             observation = observations[step_id]
+#             action = actions[step_id]
+#             estimate = step_evals[step_id]
+#             error = fitness - estimate
+#             delta = error * learning_rates[step_id]
+#             self.core[(observation, action)][step_id] += delta
 
 
 class InexactMidHybridCritic(AveragedHybridCritic):
@@ -1209,47 +1277,42 @@ class QTrajCritic(AveragedTrajCritic):
     def update(self, observations, actions, rewards):
         n_steps = len(observations)
 
-        uncertainties = self.learning_rate_scheme.uncertainties(observations, actions)
         values = self.step_evals(observations, actions)
 
-        targets, target_uncertianties = apply_smart_eligibility_trace(rewards, values, uncertainties)
+        targets = apply_eligibility_trace(rewards, values, self.trace_sustain)
 
-        learning_rates = self.learning_rate_scheme.learning_rates(observations, actions, target_uncertianties)
+        learning_rates = self.learning_rate_scheme.learning_rates(observations, actions)
 
         for step_id in range(n_steps):
             delta = targets[step_id] - self.core[(observations[step_id], actions[step_id])]
             self.core[(observations[step_id], actions[step_id])] += learning_rates[step_id] * delta
 
 
-class QSteppedCritic(AveragedSteppedCritic):
-    def __init__(self, ref_model):
-        AveragedSteppedCritic.__init__(self, ref_model)
-        self.learning_rate_scheme = SteppedKalmanLearningRateScheme(ref_model, False)
-
-    def update(self, observations, actions, rewards):
-        n_steps = len(observations)
-
-        uncertainties = self.learning_rate_scheme.uncertainties(observations, actions)
-        values = self.step_evals(observations, actions)
-
-        targets, target_uncertianties = apply_smart_eligibility_trace(rewards, values, uncertainties)
-
-        learning_rates = self.learning_rate_scheme.learning_rates(observations, actions, target_uncertianties)
-
-        for step_id in range(n_steps):
-            delta = targets[step_id] - self.core[(observations[step_id], actions[step_id])][step_id]
-            self.core[(observations[step_id], actions[step_id])][step_id] += learning_rates[step_id] * delta
+# class QSteppedCritic(AveragedSteppedCritic):
+#     def __init__(self, ref_model):
+#         AveragedSteppedCritic.__init__(self, ref_model)
+#         self.learning_rate_scheme = SteppedKalmanLearningRateScheme(ref_model, False)
+#
+#     def update(self, observations, actions, rewards):
+#         n_steps = len(observations)
+#
+#         uncertainties = self.learning_rate_scheme.uncertainties(observations, actions)
+#         values = self.step_evals(observations, actions)
+#
+#         targets, target_uncertianties = apply_smart_eligibility_trace(rewards, values, uncertainties)
+#
+#         learning_rates = self.learning_rate_scheme.learning_rates(observations, actions, target_uncertianties)
+#
+#         for step_id in range(n_steps):
+#             delta = targets[step_id] - self.core[(observations[step_id], actions[step_id])][step_id]
+#             self.core[(observations[step_id], actions[step_id])][step_id] += learning_rates[step_id] * delta
 
 class QHybridCritic(AveragedHybridCritic):
-    def __init__(self, ref_model):
-        AveragedHybridCritic.__init__(self, ref_model)
-        self.stepped_critic = QSteppedCritic(ref_model)
-        self.stepped_critic.learning_rate_scheme = SteppedKalmanLearningRateScheme(ref_model, False)
+    def targets(self, observations, actions,rewards):
 
-    def targets(self, observations, actions):
-
-        targets = self.stepped_critic.step_evals(observations, actions)
-        target_uncertainties = self.stepped_critic.learning_rate_scheme.uncertainties(observations, actions)
+        stepped_values = self.stepped_values(observations, actions)
+        targets = apply_eligibility_trace(rewards, stepped_values, self.trace_sustain)
+        target_uncertainties = [1. for i in range(len(observations))]
 
         return targets, target_uncertainties
 
@@ -1360,38 +1423,52 @@ class VTrajCritic(AveragedTrajCritic):
     def update(self, observations, actions, rewards):
         n_steps = len(observations)
 
-        uncertainties = self.learning_rate_scheme.uncertainties(observations, actions)
         values = self.step_evals(observations, actions)
 
-        targets, target_uncertianties = apply_smart_eligibility_trace(rewards, values, uncertainties)
+        targets = apply_eligibility_trace(rewards, values, self.trace_sustain)
 
-        learning_rates = self.learning_rate_scheme.learning_rates(observations, actions, target_uncertianties)
+        learning_rates = self.learning_rate_scheme.learning_rates(observations, actions)
+
+
 
         for step_id in range(n_steps):
             delta = targets[step_id] - self.core[observations[step_id]]
             self.core[observations[step_id]] += learning_rates[step_id] * delta
 
 
-class VSteppedCritic(AveragedSteppedCritic):
-
+class VHybridCritic(AveragedHybridCritic):
     def __init__(self, ref_model):
-        AveragedSteppedCritic.__init__(self, ref_model)
-        self.learning_rate_scheme = SteppedKalmanLearningRateScheme(ref_model, True)
+        AveragedHybridCritic.__init__(self, ref_model)
         self.has_only_observation_as_key = True
 
-    def update(self, observations, actions, rewards):
-        n_steps = len(observations)
+    def targets(self, observations, actions,rewards):
 
-        uncertainties = self.learning_rate_scheme.uncertainties(observations, actions)
-        values = self.step_evals(observations, actions)
+        stepped_values = self.stepped_values(observations, actions)
+        targets = apply_eligibility_trace(rewards, stepped_values, self.trace_sustain)
+        target_uncertainties = [1. for i in range(len(observations))]
 
-        targets, target_uncertianties = apply_smart_eligibility_trace(rewards, values, uncertainties)
+        return targets, target_uncertainties
 
-        learning_rates = self.learning_rate_scheme.learning_rates(observations, actions, target_uncertianties)
-
-        for step_id in range(n_steps):
-            delta = targets[step_id] - self.core[observations[step_id]][step_id]
-            self.core[observations[step_id]][step_id] += learning_rates[step_id] * delta
+# class VSteppedCritic(AveragedSteppedCritic):
+#
+#     def __init__(self, ref_model):
+#         AveragedSteppedCritic.__init__(self, ref_model)
+#         self.learning_rate_scheme = SteppedKalmanLearningRateScheme(ref_model, True)
+#         self.has_only_observation_as_key = True
+#
+#     def update(self, observations, actions, rewards):
+#         n_steps = len(observations)
+#
+#         uncertainties = self.learning_rate_scheme.uncertainties(observations, actions)
+#         values = self.step_evals(observations, actions)
+#
+#         targets, target_uncertianties = apply_smart_eligibility_trace(rewards, values, uncertainties)
+#
+#         learning_rates = self.learning_rate_scheme.learning_rates(observations, actions, target_uncertianties)
+#
+#         for step_id in range(n_steps):
+#             delta = targets[step_id] - self.core[observations[step_id]][step_id]
+#             self.core[observations[step_id]][step_id] += learning_rates[step_id] * delta
 
 
 #
@@ -1475,38 +1552,49 @@ class UTrajCritic(AveragedTrajCritic):
 
     def update(self, observations, actions, rewards):
         n_steps = len(observations)
-
-        uncertainties = self.learning_rate_scheme.uncertainties(observations, actions)
         values = self.step_evals(observations, actions)
 
-        targets, target_uncertianties = apply_smart_reverse_eligibility_trace(rewards, values, uncertainties)
+        targets = apply_eligibility_trace(rewards, values, self.trace_sustain)
 
-        learning_rates = self.learning_rate_scheme.learning_rates(observations, actions, target_uncertianties)
+        learning_rates = self.learning_rate_scheme.learning_rates(observations, actions)
 
         for step_id in range(n_steps):
             delta = targets[step_id] - self.core[observations[step_id]]
             self.core[observations[step_id]] += learning_rates[step_id] * delta
 
-class USteppedCritic(AveragedSteppedCritic):
-
+class UHybridCritic(AveragedHybridCritic):
     def __init__(self, ref_model):
-        AveragedSteppedCritic.__init__(self, ref_model)
-        self.learning_rate_scheme = SteppedKalmanLearningRateScheme(ref_model, True)
+        AveragedHybridCritic.__init__(self, ref_model)
         self.has_only_observation_as_key = True
 
-    def update(self, observations, actions, rewards):
-        n_steps = len(observations)
+    def targets(self, observations, actions,rewards):
 
-        uncertainties = self.learning_rate_scheme.uncertainties(observations, actions)
-        values = self.step_evals(observations, actions)
+        stepped_values = self.stepped_values(observations, actions)
+        targets = apply_reverse_eligibility_trace(rewards, stepped_values, self.trace_sustain)
+        target_uncertainties = [1. for i in range(len(observations))]
 
-        targets, target_uncertianties = apply_smart_reverse_eligibility_trace(rewards, values, uncertainties)
+        return targets, target_uncertainties
 
-        learning_rates = self.learning_rate_scheme.learning_rates(observations, actions, target_uncertianties)
-
-        for step_id in range(n_steps):
-            delta = targets[step_id] - self.core[observations[step_id]][step_id]
-            self.core[observations[step_id]][step_id] += learning_rates[step_id] * delta
+# class USteppedCritic(AveragedSteppedCritic):
+#
+#     def __init__(self, ref_model):
+#         AveragedSteppedCritic.__init__(self, ref_model)
+#         self.learning_rate_scheme = SteppedKalmanLearningRateScheme(ref_model, True)
+#         self.has_only_observation_as_key = True
+#
+#     def update(self, observations, actions, rewards):
+#         n_steps = len(observations)
+#
+#         uncertainties = self.learning_rate_scheme.uncertainties(observations, actions)
+#         values = self.step_evals(observations, actions)
+#
+#         targets, target_uncertianties = apply_smart_reverse_eligibility_trace(rewards, values, uncertainties)
+#
+#         learning_rates = self.learning_rate_scheme.learning_rates(observations, actions, target_uncertianties)
+#
+#         for step_id in range(n_steps):
+#             delta = targets[step_id] - self.core[observations[step_id]][step_id]
+#             self.core[observations[step_id]][step_id] += learning_rates[step_id] * delta
 #
 # class UHybridCritic(AveragedHybridCritic):
 #
@@ -1609,7 +1697,7 @@ class ABaseCritic():
         raise NotImplementedError("Abstract Method")
 
     def copy(self):
-        critic = self.__class__(self.q_critic.core, self.v_critic.core)
+        critic = self.__class__(self.q_critic.ref_model, self.v_critic.ref_model)
         critic.v_critic = self.v_critic.copy()
         critic.q_critic = self.q_critic.copy()
 
@@ -1631,6 +1719,18 @@ class ABaseCritic():
         self.v_critic.advance_process()
         self.q_critic.advance_process()
 
+
+    @property
+    def trace_sustain(self):
+        raise RuntimeError()
+
+    @trace_sustain.setter
+    def trace_sustain(self, val):
+        a = self.v_critic.trace_sustain
+        b = self.q_critic.trace_sustain
+        self.v_critic.trace_sustain = val
+        self.q_critic.trace_sustain = val
+
     # @property
     # def time_horizon(self):
     #     raise NotImplementedError()
@@ -1645,35 +1745,27 @@ class ATrajCritic(ABaseCritic):
         self.q_critic = QTrajCritic(ref_model_q)
         self.v_critic = VTrajCritic(ref_model_v)
 
+#
+# class ASteppedCritic(ABaseCritic):
+#     def __init__(self, ref_model_q, ref_model_v):
+#         self.q_critic = QSteppedCritic(ref_model_q)
+#         self.v_critic = VSteppedCritic(ref_model_v)
 
-class ASteppedCritic(ABaseCritic):
+
+
+class AHybridCritic(ABaseCritic):
     def __init__(self, ref_model_q, ref_model_v):
-        self.q_critic = QSteppedCritic(ref_model_q)
-        self.v_critic = VSteppedCritic(ref_model_v)
+        self.q_critic = QHybridCritic(ref_model_q)
+        self.v_critic = VHybridCritic(ref_model_v)
 
 
-
-class AHybridCritic(AveragedHybridCritic):
-    def __init__(self, ref_model_q, ref_model_v):
-        AveragedHybridCritic.__init__(self, ref_model_q)
-        self.stepped_critic = ASteppedCritic(ref_model_q, ref_model_v)
-        self.init_params = (ref_model_q, ref_model_v)
-
-    def targets(self, observations, actions):
-
-        targets = self.stepped_critic.step_evals(observations, actions)
-        q_uncertainties = self.stepped_critic.q_critic.learning_rate_scheme.uncertainties(observations, actions)
-        v_uncertainties = self.stepped_critic.v_critic.learning_rate_scheme.uncertainties(observations, actions)
-        target_uncertainties = [q_uncertainties[i] + v_uncertainties[i] for i in range(len(q_uncertainties))]
-
-        return targets, target_uncertainties
 
 class UqBaseCritic():
     def __init__(self):
         raise NotImplementedError("Abstract Method")
 
     def copy(self):
-        critic = self.__class__(self.q_critic.core, self.u_critic.core)
+        critic = self.__class__(self.q_critic.ref_model, self.u_critic.ref_model)
         critic.u_critic = self.u_critic.copy()
         critic.q_critic = self.q_critic.copy()
 
@@ -1696,6 +1788,19 @@ class UqBaseCritic():
         self.u_critic.advance_process()
         self.q_critic.advance_process()
 
+
+    @property
+    def trace_sustain(self):
+        raise RuntimeError()
+
+    @trace_sustain.setter
+    def trace_sustain(self, val):
+        a = self.u_critic.trace_sustain
+        b = self.q_critic.trace_sustain
+        self.u_critic.trace_sustain = val
+        self.q_critic.trace_sustain = val
+
+
     # @property
     # def time_horizon(self):
     #     raise NotImplementedError()
@@ -1709,32 +1814,24 @@ class UqTrajCritic(UqBaseCritic):
     def __init__(self, ref_model_q, ref_model_u):
         self.q_critic = QTrajCritic(ref_model_q)
         self.u_critic = UTrajCritic(ref_model_u)
+#
+# class UqSteppedCritic(UqBaseCritic):
+#     def __init__(self, ref_model_q, ref_model_u):
+#         self.q_critic = QSteppedCritic(ref_model_q)
+#         self.u_critic = USteppedCritic(ref_model_u)
+#
+#     def advance_process(self):
+#         self.q_critic.advance_process()
+#         self.u_critic.advance_process()
 
-class UqSteppedCritic(UqBaseCritic):
+
+
+class UqHybridCritic(UqBaseCritic):
     def __init__(self, ref_model_q, ref_model_u):
-        self.q_critic = QSteppedCritic(ref_model_q)
-        self.u_critic = USteppedCritic(ref_model_u)
-
-    def advance_process(self):
-        self.q_critic.advance_process()
-        self.u_critic.advance_process()
+        self.q_critic = QHybridCritic(ref_model_q)
+        self.u_critic = UHybridCritic(ref_model_u)
 
 
-
-class UqHybridCritic(AveragedHybridCritic):
-    def __init__(self, ref_model_q, ref_model_u):
-        AveragedHybridCritic.__init__(self, ref_model_q)
-        self.stepped_critic = UqSteppedCritic(ref_model_q, ref_model_u)
-        self.init_params = (ref_model_q, ref_model_u)
-
-    def targets(self, observations, actions):
-
-        targets = self.stepped_critic.step_evals(observations, actions)
-        q_uncertainties = self.stepped_critic.q_critic.learning_rate_scheme.uncertainties(observations, actions)
-        u_uncertainties = self.stepped_critic.u_critic.learning_rate_scheme.uncertainties(observations, actions)
-        target_uncertainties = [q_uncertainties[i] + u_uncertainties[i] for i in range(len(q_uncertainties))]
-
-        return targets, target_uncertainties
 
     # def copy(self):
     #     critic = self.__class__(self.q_critic.stepped_core, self.u_critic.stepped_core)
@@ -1757,14 +1854,4 @@ class UqHybridCritic(AveragedHybridCritic):
     #     self.q_critic.update_heavy(light.q_critic)
     #     self.u_critic.update_heavy(light.u_critic)
 
-    #
-    # @property
-    # def trace_sustain(self):
-    #     raise RuntimeError()
-    #
-    # @trace_sustain.setter
-    # def trace_sustain(self, val):
-    #     a = self.u_critic.trace_sustain
-    #     b = self.q_critic.trace_sustain
-    #     self.u_critic.trace_sustain = val
-    #     self.q_critic.trace_sustain = val
+
