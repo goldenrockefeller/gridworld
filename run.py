@@ -10,11 +10,11 @@ import cProfile, pstats
 
 
 def run():
-    experiment_name = "MAG_TestD1"
+    experiment_name = "E1_MAG"
     n_stats_run_per_process = 1
 
     mods_to_mix = [
-        (qtc_l(5000, 0.05), )
+        (noc, )
     ]
 
     runners = [

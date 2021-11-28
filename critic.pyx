@@ -668,6 +668,7 @@ class MeanTrajKalmanLearningRateScheme():
             else:
                 key = (observation, action)
 
+
             local_h[key] += 1. / n_steps
 
             p = self.p[key]
@@ -699,17 +700,17 @@ class MeanTrajKalmanLearningRateScheme():
             else:
                 key = (observation, action)
 
+
             if n_inf_p > 0:
                 if local_p[key] == float("inf"):
                     k = 1.
                     p = 1. / (local_h[key] * local_h[key])
                 else:
                     k = 0.
-                    p = self.p[key]
+                    p = local_p[key]
             else:
                 k = local_h[key] * local_p[key] / denom
                 p = (1-k * local_h[key]) * p
-
 
             self.p[key] = p
             rates[step_id] = k / local_h[key]
@@ -1468,7 +1469,7 @@ class QHybridCritic(AveragedHybridCritic):
         n_steps = len(observations)
         stepped_values = self.stepped_values(observations, actions)
         targets = apply_eligibility_trace(rewards, stepped_values, self.trace_sustain)
-        target_uncertainties = list(reversed([(i+1) / n_steps  for i in range(n_steps)]))
+        target_uncertainties = [1. for i in range(len(observations))]
 
         return targets, target_uncertainties
 
@@ -1602,7 +1603,7 @@ class VHybridCritic(AveragedHybridCritic):
 
         stepped_values = self.stepped_values(observations, actions)
         targets = apply_eligibility_trace(rewards, stepped_values, self.trace_sustain)
-        target_uncertainties = list(reversed([(i+1) / n_steps  for i in range(n_steps)]))
+        target_uncertainties = [1. for i in range(len(observations))]
 
         return targets, target_uncertainties
 
@@ -1728,7 +1729,7 @@ class UHybridCritic(AveragedHybridCritic):
         n_steps = len(observations)
         stepped_values = self.stepped_values(observations, actions)
         targets = apply_reverse_eligibility_trace(rewards, stepped_values, self.trace_sustain)
-        target_uncertainties = [(i+1) / n_steps  for i in range(n_steps)]
+        target_uncertainties = [1. for i in range(len(observations))]
 
         return targets, target_uncertainties
 

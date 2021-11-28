@@ -88,7 +88,7 @@ class Runner:
         sys.stdout.flush()
 
         args = {
-            "n_steps" : 1000,
+            "n_steps" : 100,
             "n_rows" : 10,
             "n_cols" : 10,
             "process_noise" : 1./ 1000.,
