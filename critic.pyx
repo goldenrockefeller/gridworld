@@ -676,7 +676,7 @@ class MeanTrajKalmanLearningRateScheme():
             if p != float("inf"):
                 p = (
                     p
-                    + self.process_noise
+                    + self.process_noise / n_steps
                     * (self.n_process_steps_elapsed - self.last_update_seen[key])
                 )
 
@@ -689,9 +689,18 @@ class MeanTrajKalmanLearningRateScheme():
             if p == float("inf"):
                 n_inf_p += 1
 
-        denom = 1.
-        for key in local_p:
-            denom += local_h[key] * local_h[key] * local_p[key]
+        if n_inf_p == 0:
+            denom = 1.
+            for key in local_p:
+                denom += local_h[key] * local_h[key] * local_p[key]
+        else:
+            denom = 0.
+            nom = 1.
+            key, p in local_p:
+                if p == float("inf"):
+                    denom += local_h[key] * local_h[key]
+                else:
+                    nom += local_h[key] * local_h[key] * local_p[key]
 
 
         for step_id, observation, action in zip(range(len(observations)), observations, actions):
@@ -703,17 +712,17 @@ class MeanTrajKalmanLearningRateScheme():
 
             if n_inf_p > 0:
                 if local_p[key] == float("inf"):
-                    k = 1.
-                    p = 1. / (local_h[key] * local_h[key])
+                    p = nom / (local_h[key] * local_h[key] * n_inf_p)
+                    rates[step_id] = 1. / (local_h[key] * local_h[key] * n_inf_p)
                 else:
-                    k = 0.
                     p = local_p[key]
+                    rates[step_id] = 0.
             else:
                 k = local_h[key] * local_p[key] / denom
                 p = (1-k * local_h[key]) * p
+                rates[step_id] = k / local_h[key]
 
             self.p[key] = p
-            rates[step_id] = k / local_h[key]
 
 
         return rates
@@ -792,93 +801,93 @@ class SteppedKalmanLearningRateScheme():
     def advance_process(self):
         self.n_process_steps_elapsed += 1
 
-class MeanSteppedKalmanLearningRateScheme():
-
-    def __init__(self, ref_model, has_only_observation_as_key = False):
-        self.p = {key: [float("inf") for _ in range(len(ref_model[key]))] for key in ref_model}
-        self.last_update_seen =  {key: [0 for _ in range(len(ref_model[key]))] for key in ref_model}
-        self.n_process_steps_elapsed = 0
-        self.process_noise = 0.
-        self.has_only_observation_as_key = has_only_observation_as_key
-
-
-    def copy(self):
-        scheme = self.__class__(self.p)
-        scheme.p = {key : self.p[key].copy() for key in self.p}
-        scheme.last_update_seen = {key : self.last_update_seen[key].copy() for key in self.last_update_seen}
-        scheme.n_process_steps_elapsed = self.n_process_steps_elapsed
-        scheme.process_noise = self.process_noise
-        scheme.has_only_observation_as_key = self.has_only_observation_as_key
-
-        return scheme
-
-
-    def learning_rates(self, observations, actions):
-        n_steps = len(observations)
-
-        rates = [0. for _ in range(len(observations))]
-
-        local_p = {}
-
-        n_inf_p = 0
-        denom = 1.
-        h = 1. / n_steps
-
-        for step_id, observation, action in zip(range(len(observations)), observations, actions):
-            if self.has_only_observation_as_key:
-                key = observation
-            else:
-                key = (observation, action)
-
-            h = 1. / n_steps
-
-            p = self.p[key][step_id]
-
-            if p == float("inf"):
-                n_inf_p += 1
-            else:
-                p = (
-                    p
-                    + self.process_noise
-                    * (self.n_process_steps_elapsed - self.last_update_seen[key][step_id])
-                )
-                denom += h * h * p
-
-            self.p[key][step_id] = p
-
-            self.last_update_seen[key][step_id] = self.n_process_steps_elapsed
-
-
-
-        for step_id, observation, action in zip(range(len(observations)), observations, actions):
-            if self.has_only_observation_as_key:
-                key = observation
-            else:
-                key = (observation, action)
-
-            p = self.p[key][step_id]
-
-            if n_inf_p > 0:
-                if local_p[key] == float("inf"):
-                    k = 1.
-                    p = 1. / (h * h)
-                else:
-                    k = 0.
-                    p = self.p[key]
-            else:
-                k = h * p / denom
-                p = (1-k *h) * p
-
-
-            self.p[key] = p
-            rates[step_id] = k / h
-
-
-        return rates
-
-    def advance_process(self):
-        self.n_process_steps_elapsed += 1
-
+# class MeanSteppedKalmanLearningRateScheme():
+#
+#     def __init__(self, ref_model, has_only_observation_as_key = False):
+#         self.p = {key: [float("inf") for _ in range(len(ref_model[key]))] for key in ref_model}
+#         self.last_update_seen =  {key: [0 for _ in range(len(ref_model[key]))] for key in ref_model}
+#         self.n_process_steps_elapsed = 0
+#         self.process_noise = 0.
+#         self.has_only_observation_as_key = has_only_observation_as_key
+#
+#
+#     def copy(self):
+#         scheme = self.__class__(self.p)
+#         scheme.p = {key : self.p[key].copy() for key in self.p}
+#         scheme.last_update_seen = {key : self.last_update_seen[key].copy() for key in self.last_update_seen}
+#         scheme.n_process_steps_elapsed = self.n_process_steps_elapsed
+#         scheme.process_noise = self.process_noise
+#         scheme.has_only_observation_as_key = self.has_only_observation_as_key
+#
+#         return scheme
+#
+#
+#     def learning_rates(self, observations, actions):
+#         n_steps = len(observations)
+#
+#         rates = [0. for _ in range(len(observations))]
+#
+#         local_p = {}
+#
+#         n_inf_p = 0
+#         denom = 1.
+#         h = 1. / n_steps
+#
+#         for step_id, observation, action in zip(range(len(observations)), observations, actions):
+#             if self.has_only_observation_as_key:
+#                 key = observation
+#             else:
+#                 key = (observation, action)
+#
+#             h = 1. / n_steps
+#
+#             p = self.p[key][step_id]
+#
+#             if p == float("inf"):
+#                 n_inf_p += 1
+#             else:
+#                 p = (
+#                     p
+#                     + self.process_noise
+#                     * (self.n_process_steps_elapsed - self.last_update_seen[key][step_id])
+#                 )
+#                 denom += h * h * p
+#
+#             self.p[key][step_id] = p
+#
+#             self.last_update_seen[key][step_id] = self.n_process_steps_elapsed
+#
+#
+#
+#         for step_id, observation, action in zip(range(len(observations)), observations, actions):
+#             if self.has_only_observation_as_key:
+#                 key = observation
+#             else:
+#                 key = (observation, action)
+#
+#             p = self.p[key][step_id]
+#
+#             if n_inf_p > 0:
+#                 if local_p[key] == float("inf"):
+#                     k = 1.
+#                     p = 1. / (h * h)
+#                 else:
+#                     k = 0.
+#                     p = self.p[key]
+#             else:
+#                 k = h * p / denom
+#                 p = (1-k *h) * p
+#
+#
+#             self.p[key] = p
+#             rates[step_id] = k / h
+#
+#
+#         return rates
+#
+#     def advance_process(self):
+#         self.n_process_steps_elapsed += 1
+#
 
 class TrajCritic():
     def __init__(self, ref_model):
