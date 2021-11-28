@@ -685,7 +685,8 @@ class MeanTrajKalmanLearningRateScheme():
 
             self.last_update_seen[key] = self.n_process_steps_elapsed
 
-        for key, p in local_p:
+        for key in local_p:
+            p = local_p[key]
             if p == float("inf"):
                 n_inf_p += 1
 
@@ -696,7 +697,8 @@ class MeanTrajKalmanLearningRateScheme():
         else:
             denom = 0.
             nom = 1.
-            key, p in local_p:
+            for key in local_p:
+                p = local_p[key]
                 if p == float("inf"):
                     denom += local_h[key] * local_h[key]
                 else:
