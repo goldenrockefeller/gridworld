@@ -14,7 +14,7 @@ def run():
     n_stats_run_per_process = 1
 
     mods_to_mix = [
-        (qhc_l(500, 0.05), )
+        (uqtc_l(1, 0.0), )
     ]
 
     runners = [
