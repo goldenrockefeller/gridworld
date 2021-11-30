@@ -1,0 +1,6 @@
+n_epochs_elapsed,1,2,3
+n_training_episodes_elapsed,50,100,150
+n_training_steps_elapsed,5000,10000,15000
+scores,2.0,0.0,0.0
+critic_a_evals,-0.0608,0.1181249817324794,0.15468972231179878
+critic_a_score_losses,2.12344832,0.006976755654649296,0.011964455094450708
