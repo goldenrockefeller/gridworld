@@ -628,7 +628,7 @@ class TrajKalmanLearningRateScheme():
 
 class MeanTrajKalmanLearningRateScheme():
     def __init__(self, ref_model, has_only_observation_as_key = False):
-        self.p = {key: float("inf") for key in ref_model}
+        self.p = {key: 1. for key in ref_model}
         self.last_update_seen = {key: 0 for key in ref_model}
         self.n_process_steps_elapsed = 0
         self.process_noise = 0.
@@ -688,6 +688,7 @@ class MeanTrajKalmanLearningRateScheme():
         for key in local_p:
             p = local_p[key]
             if p == float("inf"):
+                raise ValueError()
                 n_inf_p += 1
 
         if n_inf_p == 0:
@@ -714,8 +715,8 @@ class MeanTrajKalmanLearningRateScheme():
 
             if n_inf_p > 0:
                 if local_p[key] == float("inf"):
-                    p = nom / (local_h[key] * local_h[key] * n_inf_p)
-                    rates[step_id] = 1. / (local_h[key] * local_h[key] * n_inf_p)
+                    p = nom / (local_h[key] * local_h[key])
+                    rates[step_id] = 1. / (local_h[key] * local_h[key])
                 else:
                     p = local_p[key]
                     rates[step_id] = 0.

@@ -8,13 +8,15 @@ from time import sleep
 import sys
 import cProfile, pstats
 
+def mtc_c(args):
+    mtc(args)
 
 def run():
     experiment_name = "E1_MAG"
     n_stats_run_per_process = 1
 
     mods_to_mix = [
-        (uqtc_l(500, 0.05), )
+        (mtc_c, )
     ]
 
     runners = [
