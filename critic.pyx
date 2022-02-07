@@ -561,13 +561,13 @@ class Critic:
         self.learning_rate_scheme = BasicLearningRateScheme()
         self.core = {key: 0. for key in all_keys}
         self.has_only_observation_as_key = has_only_observation_as_key
-        self.aggregation = seq_mean # Note that aggregation  is a reference.
+        self.fn_aggregation = seq_mean # Note that aggregation  is a reference.
 
     def copy(self):
         critic = self.__class__(self.core)
         critic.learning_rate_scheme = self.learning_rate_scheme.copy()
         critic.core = self.core.copy()
-        critic.aggregation = self.aggregation # Note that aggregation is a reference.
+        critic.fn_aggregation = self.fn_aggregation # Note that aggregation is a reference.
 
         return critic
 
@@ -600,7 +600,7 @@ class Critic:
 
     def eval(self, observations: Sequence[Hashable], actions: Sequence[Hashable]) -> float:
         validate_trajectory_size(observations, actions)
-        return self.aggregation(self.step_evals(observations, actions))
+        return self.fn_aggregation(self.step_evals(observations, actions))
 
     def step_evals(self, observations: Sequence[Hashable], actions: Sequence[Hashable]) -> Sequence[float]:
 
@@ -698,7 +698,7 @@ cdef class BaseEnsembleCritic():
         self.process_noise = 0.
         self.n_process_steps_elapsed = 0
         self.has_only_observation_as_key = has_only_observation_as_key
-        self.aggregation = seq_mean # Note that aggregation  is a reference.
+        self.fn_aggregation = seq_mean # Note that aggregation  is a reference.
         self.n_steps = n_steps
 
 
@@ -708,7 +708,7 @@ cdef class BaseEnsembleCritic():
         critic.process_noise = self.process_noise
         critic.n_process_steps_elapsed = self.n_process_steps_elapsed
         critic.has_only_observation_as_key = self.has_only_observation_as_key
-        critic.aggregation = self.aggregation # Note that aggregation is a reference.
+        critic.fn_aggregation = self.fn_aggregation # Note that aggregation is a reference.
         critic.n_steps = self.n_steps
 
         return critic
@@ -720,7 +720,7 @@ cdef class BaseEnsembleCritic():
     def eval(self, observations: Sequence[Hashable], actions: Sequence[Hashable]) -> float:
 
         validate_trajectory_size_to_n_steps(self.n_steps, observations, actions)
-        return self.aggregation(self.step_evals(observations, actions))
+        return self.fn_aggregation(self.step_evals(observations, actions))
 
 
     def step_evals(self, observations: Sequence[Hashable], actions: Sequence[Hashable]) -> Sequence[float]:
@@ -1036,11 +1036,11 @@ class TwCritic(Critic):
     def targets(self, observations: Sequence[Hashable], actions: Sequence[Hashable], rewards: Sequence[float]) -> Sequence[float]:
         validate_trajectory_size(observations, actions, rewards)
 
-        if self.aggregation is not seq_mean:
+        if self.fn_aggregation is not seq_mean:
             raise  (
                 RuntimeError(
                     "The trajectory-wise fitness critic update is only defined for the mean aggregation function."
-                    "(self.aggregation is not seq_mean)"
+                    "(self.fn_aggregation is not seq_mean)"
                 )
             )
 
@@ -1243,7 +1243,7 @@ class ABaseCritic:
         # critic = self.__class__(all_keys, all_keys)
         # critic.v_critic = self.v_critic.copy()
         # critic.q_critic = self.q_critic.copy()
-        # critic.aggregation = self.aggregation
+        # critic.fn_aggregation = self.fn_aggregation
         #
         # return critic
 
@@ -1254,7 +1254,7 @@ class ABaseCritic:
 
     def eval(self, observations: Sequence[Hashable], actions: Sequence[Hashable]) -> float:
         validate_trajectory_size(observations, actions)
-        return self.aggregation(self.step_evals(observations, actions))
+        return self.fn_aggregation(self.step_evals(observations, actions))
 
     def step_evals(self, observations: Sequence[Hashable], actions: Sequence[Hashable]) -> Sequence[float]:
         validate_trajectory_size(observations, actions)
@@ -1281,7 +1281,7 @@ class ACritic(ABaseCritic):
     def __init__(self, all_q_keys: Iterable[Hashable], all_v_keys: Iterable[Hashable]):
         self.q_critic = QCritic(all_q_keys)
         self.v_critic = VCritic(all_v_keys)
-        self.aggregation = seq_mean
+        self.fn_aggregation = seq_mean
         self.all_q_keys = all_q_keys
         self.all_v_keys = all_v_keys
 
@@ -1289,7 +1289,7 @@ class ACritic(ABaseCritic):
         critic = self.__class__(self.all_q_keys, self.all_v_keys)
         critic.q_critic = self.q_critic.copy()
         critic.v_critic = self.v_critic.copy()
-        critic.aggregation = self.aggregation
+        critic.fn_aggregation = self.fn_aggregation
         critic.all_q_keys = self.all_q_keys
         critic.all_v_keys = self.all_v_keys
 
@@ -1297,7 +1297,7 @@ class AEnsembleCritic(ABaseCritic):
     def __init__(self, all_q_keys: Iterable[Hashable], all_v_keys: Iterable[Hashable], n_steps):
         self.q_critic = QEnsembleCritic(all_q_keys, n_steps)
         self.v_critic = VEnsembleCritic(all_v_keys, n_steps)
-        self.aggregation = seq_mean
+        self.fn_aggregation = seq_mean
         self.n_steps = n_steps
         self.all_q_keys = all_q_keys
         self.all_v_keys = all_v_keys
@@ -1306,7 +1306,7 @@ class AEnsembleCritic(ABaseCritic):
         critic = self.__class__(self.all_q_keys, self.all_v_keys, self.n_steps)
         critic.q_critic = self.q_critic.copy()
         critic.v_critic = self.v_critic.copy()
-        critic.aggregation = self.aggregation
+        critic.fn_aggregation = self.fn_aggregation
         critic.n_steps = self.n_steps
         critic.all_q_keys = self.all_q_keys
         critic.all_v_keys = self.all_v_keys
@@ -1317,7 +1317,7 @@ class ACombinedEnsembleCritic:
         self.q_critic = QEnsembleCritic(all_q_keys, n_steps)
         self.v_critic = VEnsembleCritic(all_v_keys, n_steps)
         self.core = CombinedEnsembleCritic(all_q_keys, n_steps)
-        self.aggregation = seq_mean
+        self.fn_aggregation = seq_mean
         self.n_steps = n_steps
         self.all_q_keys = all_q_keys
         self.all_v_keys = all_v_keys
@@ -1327,7 +1327,7 @@ class ACombinedEnsembleCritic:
         critic.v_critic = self.v_critic.copy()
         critic.q_critic = self.q_critic.copy()
         critic.core = self.core.copy()
-        critic.aggregation = self.aggregation
+        critic.fn_aggregation = self.fn_aggregation
         critic.n_steps = self.n_steps
         critic.all_q_keys = self.all_q_keys
         critic.all_v_keys = self.all_v_keys
@@ -1359,7 +1359,7 @@ class ACombinedEnsembleCritic:
 
     def eval(self, observations: Sequence[Hashable], actions: Sequence[Hashable]) -> float:
         validate_trajectory_size_to_n_steps(self.n_steps, observations, actions)
-        return self.aggregation(self.step_evals(observations, actions))
+        return self.fn_aggregation(self.step_evals(observations, actions))
 
     def step_evals(self, observations: Sequence[Hashable], actions: Sequence[Hashable]) -> Sequence[float]:
         validate_trajectory_size_to_n_steps(self.n_steps, observations, actions)
@@ -1402,7 +1402,7 @@ class BiBaseCritic():
 
     def eval(self, observations: Sequence[Hashable], actions: Sequence[Hashable]) -> float:
         validate_trajectory_size(observations, actions)
-        return self.aggregation(self.step_evals(observations, actions))
+        return self.fn_aggregation(self.step_evals(observations, actions))
 
     def step_evals(self, observations: Sequence[Hashable], actions: Sequence[Hashable]) -> Sequence[float]:
         validate_trajectory_size(observations, actions)
@@ -1430,7 +1430,7 @@ class BiCritic(BiBaseCritic):
     def __init__(self, all_q_keys: Iterable[Hashable], all_u_keys: Iterable[Hashable]):
         self.q_critic = QCritic(all_q_keys)
         self.u_critic = UCritic(all_u_keys)
-        self.aggregation = seq_mean
+        self.fn_aggregation = seq_mean
         self.all_q_keys = all_q_keys
         self.all_u_keys = all_u_keys
 
@@ -1438,7 +1438,7 @@ class BiCritic(BiBaseCritic):
         critic = self.__class__(self.all_q_keys, self.all_u_keys)
         critic.q_critic = self.q_critic.copy()
         critic.u_critic = self.u_critic.copy()
-        critic.aggregation = self.aggregation
+        critic.fn_aggregation = self.fn_aggregation
         critic.all_q_keys = self.all_q_keys
         critic.all_u_keys = self.all_u_keys
 
@@ -1448,7 +1448,7 @@ class BiEnsembleCritic(BiBaseCritic):
     def __init__(self, all_q_keys: Iterable[Hashable], all_u_keys: Iterable[Hashable], n_steps):
         self.q_critic = QEnsembleCritic(all_q_keys, n_steps)
         self.v_critic = VEnsembleCritic(all_u_keys, n_steps)
-        self.aggregation = seq_mean
+        self.fn_aggregation = seq_mean
         self.n_steps = n_steps
         self.all_q_keys = all_q_keys
         self.all_u_keys = all_u_keys
@@ -1457,7 +1457,7 @@ class BiEnsembleCritic(BiBaseCritic):
         critic = self.__class__(self.all_q_keys, self.all_u_keys, self.n_steps)
         critic.q_critic = self.q_critic.copy()
         critic.v_critic = self.v_critic.copy()
-        critic.aggregation = self.aggregation
+        critic.fn_aggregation = self.fn_aggregation
         critic.n_steps = self.n_steps
         critic.all_q_keys = self.all_q_keys
         critic.all_u_keys = self.all_u_keys
@@ -1471,7 +1471,7 @@ class BiCombinedEnsembleCritic:
         self.q_critic = QEnsembleCritic(all_q_keys, n_steps)
         self.u_critic = UEnsembleCritic(all_u_keys, n_steps)
         self.core = CombinedEnsembleCritic(all_q_keys, n_steps)
-        self.aggregation = seq_mean
+        self.fn_aggregation = seq_mean
         self.n_steps = n_steps
         self.all_q_keys = all_q_keys
         self.all_u_keys = all_u_keys
@@ -1482,7 +1482,7 @@ class BiCombinedEnsembleCritic:
         critic.u_critic = self.u_critic.copy()
         critic.q_critic = self.q_critic.copy()
         critic.core = self.core.copy()
-        critic.aggregation = self.aggregation
+        critic.fn_aggregation = self.fn_aggregation
         critic.n_steps = self.n_steps
         critic.all_q_keys = self.all_q_keys
         critic.all_u_keys = self.all_u_keys
@@ -1514,7 +1514,7 @@ class BiCombinedEnsembleCritic:
 
     def eval(self, observations: Sequence[Hashable], actions: Sequence[Hashable]) -> float:
         validate_trajectory_size_to_n_steps(self.n_steps, observations, actions)
-        return self.aggregation(self.step_evals(observations, actions))
+        return self.fn_aggregation(self.step_evals(observations, actions))
 
     def step_evals(self, observations: Sequence[Hashable], actions: Sequence[Hashable]) -> Sequence[float]:
         validate_trajectory_size_to_n_steps(self.n_steps, observations, actions)
