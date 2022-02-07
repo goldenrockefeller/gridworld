@@ -1,4 +1,4 @@
-# cython: profile=True
+# cython: profile=False
 
 import numpy as np
 from random import shuffle
@@ -11,7 +11,7 @@ import datetime as dt
 from shutil import copy
 import csv
 import time
-from critic import *
+
 import random
 from min_entropy_dist import min_entropy_dist_exp_cg, min_entropy_dist_cg
 
