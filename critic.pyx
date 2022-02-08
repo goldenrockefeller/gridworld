@@ -28,10 +28,18 @@
 # a "key" is either an observation, or an observation-action pair.
 
 
-from typing import  Sequence, Iterable, Any, Optional, Hashable
+from typing import  Sequence, Iterable, Any, Optional, Hashable, Mapping, Tuple, Generic, MutableMapping, TypeVar
 
 import numpy as np
 from libc.math cimport log, exp
+
+ObservationT = TypeVar("ObservationT", bound = Hashable)
+ActionT = TypeVar("ActionT", bound = Hashable)
+ExperienceT = Tuple[ObservationT, ActionT]
+ObservationOnlyT = Tuple[ObservationT, None]
+ValueT = TypeVar("ValueT")
+ExperienceMappingT = MutableMapping[Tuple[ObservationT, Optional[ActionT]], ValueT] # Many attributes have this type, but it too much work to add it in right now.
+
 
 # Cache random numbers for speed, and avoid python overhead.
 random_cache_size = 10000
@@ -49,9 +57,9 @@ def random_uniform():
     return val
 
 def validate_trajectory_size(
-        observations: Sequence[Hashable],
-        actions: Sequence[Hashable],
-        rewards: Optional[Sequence[Hashable]] = None,
+        observations: Sequence[Any],
+        actions: Sequence[Any],
+        rewards: Optional[Sequence[float]] = None,
 ):
     if len(observations) != len(actions):
         raise (
@@ -73,9 +81,9 @@ def validate_trajectory_size(
 
 def validate_trajectory_size_to_n_steps(
         n_steps,
-        observations: Sequence[Hashable],
-        actions: Sequence[Hashable],
-        rewards: Optional[Sequence[Hashable]] = None,
+        observations: Sequence[Any],
+        actions: Sequence[Any],
+        rewards: Optional[Sequence[float]] = None,
 ):
     if len(observations) != n_steps:
         raise (
@@ -193,7 +201,7 @@ class ReducedLearningRateScheme():
         n_steps =  len(observations)
         return [self.learning_rate / n_steps for _ in range(len(observations))]
 
-class TrajKalmanLearningRateScheme():
+class TrajKalmanLearningRateScheme(Generic[ObservationT, ActionT]):
     """ Kalman filtering for paramater estimation using single value as target ('z') for all steps
 
     Each parameter is independent from each other.
@@ -201,7 +209,7 @@ class TrajKalmanLearningRateScheme():
     The learning rate is the Kalman gain for the step.
     """
 
-    def __init__(self, all_keys: Iterable[Hashable], has_only_observation_as_key = False):
+    def __init__(self, all_keys: Iterable[ExperienceT], has_only_observation_as_key = False):
         self.p = {key: float("inf") for key in all_keys}
         self.last_update_seen = {key: 0 for key in all_keys}
         self.n_process_steps_elapsed = 0
@@ -219,7 +227,7 @@ class TrajKalmanLearningRateScheme():
 
         return scheme
 
-    def uncertainties(self, observations: Sequence[Hashable], actions: Sequence[Hashable]) -> Sequence[float]:
+    def uncertainties(self, observations: Sequence[ObservationT], actions: Sequence[ActionT]) -> Sequence[float]:
 
         """ Returns parameters uncertanties"""
         validate_trajectory_size(observations, actions)
@@ -228,7 +236,7 @@ class TrajKalmanLearningRateScheme():
 
         for step_id, observation, action in zip(range(len(observations)), observations, actions):
             if self.has_only_observation_as_key:
-                key = observation
+                key = (observation, None)
             else:
                 key = (observation, action)
 
@@ -238,8 +246,8 @@ class TrajKalmanLearningRateScheme():
 
     def learning_rates(
             self,
-            observations: Sequence[Hashable],
-            actions: Sequence[Hashable],
+            observations: Sequence[ObservationT],
+            actions: Sequence[ActionT],
             target_uncertainties: Optional[Sequence[float]] = None
     ) -> Sequence[float]:
 
@@ -263,7 +271,7 @@ class TrajKalmanLearningRateScheme():
 
         for step_id, observation, action in zip(range(len(observations)), observations, actions):
             if self.has_only_observation_as_key:
-                key = observation
+                key = (observation, None)
             else:
                 key = (observation, action)
 
@@ -290,7 +298,7 @@ class TrajKalmanLearningRateScheme():
 
         for step_id, observation, action in zip(range(len(observations)), observations, actions):
             if self.has_only_observation_as_key:
-                key = observation
+                key = (observation, None)
             else:
                 key = (observation, action)
 
@@ -302,7 +310,7 @@ class TrajKalmanLearningRateScheme():
     def advance_process(self):
         self.n_process_steps_elapsed += 1
 
-class MeanTrajKalmanLearningRateScheme():
+class MeanTrajKalmanLearningRateScheme(Generic[ObservationT, ActionT]):
     """ Kalman filtering for paramater estimation using single value as target ('z') for all steps
 
 
@@ -310,7 +318,7 @@ class MeanTrajKalmanLearningRateScheme():
     See wikipedia for explanation on what 'k', 'p', 'z' and 'h' are.
     The learning rate is the Kalman gain for the step.
     """
-    def __init__(self, all_keys: Iterable[Hashable], has_only_observation_as_key = False):
+    def __init__(self, all_keys: Iterable[ExperienceT], has_only_observation_as_key = False):
         self.p = {key: 1. for key in all_keys}
         self.last_update_seen = {key: 0 for key in all_keys}
         self.n_process_steps_elapsed = 0
@@ -328,7 +336,7 @@ class MeanTrajKalmanLearningRateScheme():
 
         return scheme
 
-    def uncertainties(self, observations: Sequence[Hashable], actions: Sequence[Hashable]) -> Sequence[float]:
+    def uncertainties(self, observations: Sequence[ObservationT], actions: Sequence[ActionT]) -> Sequence[float]:
         """ Returns parameters uncertanties"""
         validate_trajectory_size(observations, actions)
 
@@ -336,7 +344,7 @@ class MeanTrajKalmanLearningRateScheme():
 
         for step_id, observation, action in zip(range(len(observations)), observations, actions):
             if self.has_only_observation_as_key:
-                key = observation
+                key = (observation, None)
             else:
                 key = (observation, action)
 
@@ -346,8 +354,8 @@ class MeanTrajKalmanLearningRateScheme():
 
     def learning_rates(
             self,
-            observations: Sequence[Hashable],
-            actions: Sequence[Hashable]
+            observations: Sequence[ObservationT],
+            actions: Sequence[ActionT]
     ) -> Sequence[float]:
         validate_trajectory_size(observations, actions)
 
@@ -360,7 +368,7 @@ class MeanTrajKalmanLearningRateScheme():
 
         for observation, action in zip(observations, actions):
             if self.has_only_observation_as_key:
-                key = observation
+                key = (observation, None)
             else:
                 key = (observation, action)
 
@@ -368,7 +376,7 @@ class MeanTrajKalmanLearningRateScheme():
 
         for observation, action in zip(observations, actions):
             if self.has_only_observation_as_key:
-                key = observation
+                key = (observation, None)
             else:
                 key = (observation, action)
 
@@ -413,7 +421,7 @@ class MeanTrajKalmanLearningRateScheme():
 
         for step_id, observation, action in zip(range(len(observations)), observations, actions):
             if self.has_only_observation_as_key:
-                key = observation
+                key = (observation, None)
             else:
                 key = (observation, action)
 
@@ -439,7 +447,7 @@ class MeanTrajKalmanLearningRateScheme():
         self.n_process_steps_elapsed += 1
 
 
-class SteppedKalmanLearningRateScheme():
+class SteppedKalmanLearningRateScheme(Generic[ObservationT, ActionT]):
     """ Kalman filtering for paramater estimation using multiple target values ('z').
      There is one target value per step
 
@@ -449,7 +457,7 @@ class SteppedKalmanLearningRateScheme():
     The learning rate is the Kalman gain for the step.
     """
 
-    def __init__(self, all_keys: Iterable[Hashable], n_steps, has_only_observation_as_key = False):
+    def __init__(self, all_keys: Iterable[ExperienceT], n_steps, has_only_observation_as_key = False):
         self.p = {key: [float("inf") for _ in range(n_steps)] for key in all_keys}
         self.last_update_seen =  {key: [0 for _ in range(n_steps)] for key in all_keys}
         self.n_process_steps_elapsed = 0
@@ -467,7 +475,7 @@ class SteppedKalmanLearningRateScheme():
 
         return scheme
 
-    def uncertainties(self, observations: Sequence[Hashable], actions: Sequence[Hashable]) -> Sequence[float]:
+    def uncertainties(self, observations: Sequence[ObservationT], actions: Sequence[ActionT]) -> Sequence[float]:
         """ Returns parameters uncertanties"""
 
         if len(observations) != len(actions):
@@ -482,7 +490,7 @@ class SteppedKalmanLearningRateScheme():
 
         for step_id, observation, action in zip(range(len(observations)), observations, actions):
             if self.has_only_observation_as_key:
-                key = observation
+                key = (observation, None)
             else:
                 key = (observation, action)
 
@@ -492,8 +500,8 @@ class SteppedKalmanLearningRateScheme():
 
     def learning_rates(
             self,
-            observations: Sequence[Hashable],
-            actions: Sequence[Hashable],
+            observations: Sequence[ObservationT],
+            actions: Sequence[ActionT],
             target_uncertainties: Optional[Sequence[float]] = None
     ) -> Sequence[float]:
         if len(observations) != len(actions):
@@ -521,7 +529,7 @@ class SteppedKalmanLearningRateScheme():
 
         for step_id, observation, action in zip(range(len(observations)), observations, actions):
             if self.has_only_observation_as_key:
-                key = observation
+                key = (observation, None)
             else:
                 key = (observation, action)
 
@@ -555,9 +563,9 @@ def seq_mean(step_evals: Sequence[float]) -> float:
     return sum(step_evals) / len(step_evals)
 
 
-class Critic:
+class Critic(Generic[ObservationT, ActionT]):
     """Fitness Critic using lookup table as underlying functional model"""
-    def __init__(self, all_keys: Iterable[Hashable], has_only_observation_as_key = False):
+    def __init__(self, all_keys: Iterable[ExperienceT], has_only_observation_as_key = False):
         self.learning_rate_scheme = BasicLearningRateScheme()
         self.core = {key: 0. for key in all_keys}
         self.has_only_observation_as_key = has_only_observation_as_key
@@ -571,10 +579,10 @@ class Critic:
 
         return critic
 
-    def targets(self, observations: Sequence[Hashable], actions: Sequence[Hashable], rewards: Sequence[float]) -> Sequence[float]:
+    def targets(self, observations: Sequence[ObservationT], actions: Sequence[ActionT], rewards: Sequence[float]) -> Sequence[float]:
         raise NotImplementedError("Abstract Method")
 
-    def update(self, observations: Sequence[Hashable], actions: Sequence[Hashable], rewards: Sequence[float]):
+    def update(self, observations: Sequence[ObservationT], actions: Sequence[ActionT], rewards: Sequence[float]):
         validate_trajectory_size(observations, actions, rewards)
         n_steps = len(observations)
         targets = self.targets(observations, actions, rewards)
@@ -588,7 +596,7 @@ class Critic:
             action = actions[step_id]
 
             if self.has_only_observation_as_key:
-                key = observation
+                key = (observation, None)
             else:
                 key = (observation, action)
 
@@ -598,11 +606,11 @@ class Critic:
     # def update(self, observations, actions, rewards):
     #     raise NotImplementedError("Abstract Method")
 
-    def eval(self, observations: Sequence[Hashable], actions: Sequence[Hashable]) -> float:
+    def eval(self, observations: Sequence[ObservationT], actions: Sequence[ActionT]) -> float:
         validate_trajectory_size(observations, actions)
         return self.fn_aggregation(self.step_evals(observations, actions))
 
-    def step_evals(self, observations: Sequence[Hashable], actions: Sequence[Hashable]) -> Sequence[float]:
+    def step_evals(self, observations: Sequence[ObservationT], actions: Sequence[ActionT]) -> Sequence[float]:
 
         validate_trajectory_size(observations, actions)
 
@@ -612,7 +620,7 @@ class Critic:
             action = actions[step_id]
 
             if self.has_only_observation_as_key:
-                key = observation
+                key = (observation, None)
             else:
                 key = (observation, action)
 
@@ -622,12 +630,12 @@ class Critic:
     def advance_process(self):
         self.learning_rate_scheme.advance_process()
 
-class TracedCritic(Critic):
+class TracedCritic(Critic[ObservationT, ActionT]):
     """
     Fitness Critic for eligibility traces using lookup table as underlying functional model
     """
 
-    def __init__(self, all_keys: Iterable[Hashable], has_only_observation_as_key = False):
+    def __init__(self, all_keys: Iterable[ExperienceT], has_only_observation_as_key = False):
         Critic.__init__(self, all_keys, has_only_observation_as_key)
         self.trace_sustain = 0.
 
@@ -677,121 +685,128 @@ cdef class EnsembleInfo:
 
         return info
 
-cdef class BaseEnsembleCritic():
+cdef class BaseEnsembleCriticCore():
+    """
+    Compiled with Cython for speedy access/modification.
+    Inherit at your own risk; there are no getters or setters to override for some attributes.
+    """
+    cdef public dict info
+    cdef public double process_noise
+    cdef public double n_process_steps_elapsed
+    cdef public bint has_only_observation_as_key
+    cdef public object fn_aggregation
+    cdef public Py_ssize_t n_steps
+
+
+
+class BaseEnsembleCritic(Generic[ObservationT, ActionT]):
     """The Ensemble Fitness Critic using lookup table as underlying functional model.
     This class is a template for both the regular Ensemble Critic and the Combined Ensemble Critic.
 
     Compiled with Cython for speedy access/modification.
     Inherit at your own risk; there are no getters or setters to override for some attributes.
     """
-    cdef public object stepped_critic
-    cdef public dict info
-    cdef public double process_noise
-    cdef public double n_process_steps_elapsed
-    cdef public tuple init_params
-    cdef public bint has_only_observation_as_key
-    cdef public object aggregation
-    cdef public Py_ssize_t n_steps
 
-    def __init__(self, all_keys: Iterable[Hashable], n_steps, has_only_observation_as_key = False):
-        self.info = {key: EnsembleInfo(n_steps) for key in all_keys}
-        self.process_noise = 0.
-        self.n_process_steps_elapsed = 0
-        self.has_only_observation_as_key = has_only_observation_as_key
-        self.fn_aggregation = seq_mean # Note that aggregation  is a reference.
-        self.n_steps = n_steps
+    def __init__(self, all_keys: Iterable[ExperienceT], n_steps, has_only_observation_as_key = False):
+        self.core = BaseEnsembleCriticCore()
+
+        core = self.core
+
+        core.info = {key: EnsembleInfo(n_steps) for key in all_keys}
+        core.process_noise = 0.
+        core.n_process_steps_elapsed = 0
+        core.has_only_observation_as_key = has_only_observation_as_key
+        core.fn_aggregation = seq_mean # Note that aggregation  is a reference.
+        core.n_steps = n_steps
 
 
     def copy(self):
-        critic = self.__class__(self.info, self.n_steps)
-        critic.info = {key: self.info[key].copy() for key in self.info}
-        critic.process_noise = self.process_noise
-        critic.n_process_steps_elapsed = self.n_process_steps_elapsed
-        critic.has_only_observation_as_key = self.has_only_observation_as_key
-        critic.fn_aggregation = self.fn_aggregation # Note that aggregation is a reference.
-        critic.n_steps = self.n_steps
+
+        critic = self.__class__(self.core.info, self.core.n_steps)
+        critic.core.info = {key: self.core.info[key].copy() for key in self.core.info}
+        critic.core.process_noise = self.core.process_noise
+        critic.core.n_process_steps_elapsed = self.core.n_process_steps_elapsed
+        critic.core.has_only_observation_as_key = self.core.has_only_observation_as_key
+        critic.core.fn_aggregation = self.core.fn_aggregation # Note that aggregation is a reference.
+        critic.core.n_steps = self.core.n_steps
 
         return critic
 
 
     def advance_process(self):
-        self.n_process_steps_elapsed += 1
+        self.core.n_process_steps_elapsed += 1
 
-    def eval(self, observations: Sequence[Hashable], actions: Sequence[Hashable]) -> float:
+    def eval(self, observations: Sequence[ObservationT], actions: Sequence[ActionT]) -> float:
 
-        validate_trajectory_size_to_n_steps(self.n_steps, observations, actions)
-        return self.fn_aggregation(self.step_evals(observations, actions))
+        validate_trajectory_size_to_n_steps(self.core.n_steps, observations, actions)
+        return self.core.fn_aggregation(self.step_evals(observations, actions))
 
 
-    def step_evals(self, observations: Sequence[Hashable], actions: Sequence[Hashable]) -> Sequence[float]:
-        validate_trajectory_size_to_n_steps(self.n_steps, observations, actions)
+    def step_evals(self, observations: Sequence[ObservationT], actions: Sequence[ActionT]) -> Sequence[float]:
+        validate_trajectory_size_to_n_steps(self.core.n_steps, observations, actions)
 
         evals = [0. for _ in range(len(observations))]
 
         for step_id in range(len(observations)):
             observation = observations[step_id]
             action = actions[step_id]
-            if self.has_only_observation_as_key:
-                key = observation
+            if self.core.has_only_observation_as_key:
+                key = (observation, None)
             else:
                 key = (observation, action)
 
-            evals[step_id] = self.info[key].traj_value
+            evals[step_id] = self.core.info[key].traj_value
 
         return evals
 
-    def stepped_values(self, observations: Sequence[Hashable], actions: Sequence[Hashable]) -> Sequence[float]:
+    def stepped_values(self, observations: Sequence[ObservationT], actions: Sequence[ActionT]) -> Sequence[float]:
         cdef EnsembleInfo info
 
-        validate_trajectory_size_to_n_steps(self.n_steps, observations, actions)
+        validate_trajectory_size_to_n_steps(self.core.n_steps, observations, actions)
 
         values = [0. for _ in range(len(observations))]
 
         for step_id in range(len(observations)):
             observation = observations[step_id]
             action = actions[step_id]
-            if self.has_only_observation_as_key:
-                key = observation
+            if self.core.has_only_observation_as_key:
+                key = (observation, None)
             else:
                 key = (observation, action)
 
-            info = self.info[key]
+            info = self.core.info[key]
             values[step_id] = info.stepped_values[step_id]
 
         return values
 
 
-    def stepped_weights(self, observations: Sequence[Hashable], actions: Sequence[Hashable]) -> Sequence[float]:
-        validate_trajectory_size_to_n_steps(self.n_steps, observations, actions)
+    def stepped_weights(self, observations: Sequence[ObservationT], actions: Sequence[ActionT]) -> Sequence[float]:
+        validate_trajectory_size_to_n_steps(self.core.n_steps, observations, actions)
 
         weights = [0. for _ in range(len(observations))]
 
         for step_id in range(len(observations)):
             observation = observations[step_id]
             action = actions[step_id]
-            if self.has_only_observation_as_key:
-                key = observation
+            if self.core.has_only_observation_as_key:
+                key = (observation, None)
             else:
                 key = (observation, action)
 
-            weights[step_id] = self.info[key].stepped_weights[step_id]
+            weights[step_id] = self.core.info[key].stepped_weights[step_id]
 
         return weights
 
 
-cdef class EnsembleCritic(BaseEnsembleCritic):
-    """The Ensemble Fitness Critic using lookup table as underlying functional model.
-
-    Compiled with Cython for speedy access/modification.
-    Inherit at your own risk; there are no getters or setters to override for some attributes.
-    """
+class EnsembleCritic(BaseEnsembleCritic[ObservationT, ActionT]):
+    """The Ensemble Fitness Critic using lookup table as underlying functional model"""
 
 
-    def targets(self, observations: Sequence[Hashable], actions: Sequence[Hashable], rewards: Sequence[float]) -> Sequence[float]:
+    def targets(self, observations: Sequence[ObservationT], actions: Sequence[ActionT], rewards: Sequence[float]) -> Sequence[float]:
         raise NotImplementedError("Abstract Method")
 
 
-    def update(self, observations: Sequence[Hashable], actions: Sequence[Hashable], rewards: Sequence[float]):
+    def update(self, observations: Sequence[ObservationT], actions: Sequence[ActionT], rewards: Sequence[float]):
 
         cdef list targets
         cdef list target_uncertainties
@@ -817,9 +832,11 @@ cdef class EnsembleCritic(BaseEnsembleCritic):
         cdef list stepped_weights
         cdef list stepped_muls
 
+        cdef BaseEnsembleCriticCore core = self.core
 
 
-        validate_trajectory_size_to_n_steps(self.n_steps, observations, actions, rewards)
+
+        validate_trajectory_size_to_n_steps(core.n_steps, observations, actions, rewards)
 
 
         targets = self.targets(observations, actions, rewards)
@@ -828,12 +845,12 @@ cdef class EnsembleCritic(BaseEnsembleCritic):
             observation = observations[step_id]
             action = actions[step_id]
 
-            if self.has_only_observation_as_key:
-                key = observation
+            if core.has_only_observation_as_key:
+                key = (observation, None)
             else:
                 key = (observation, action)
 
-            info = self.info[key]
+            info = core.info[key]
             stepped_values = info.stepped_values
             stepped_weights = info.stepped_weights
             stepped_muls = info.stepped_muls
@@ -847,7 +864,7 @@ cdef class EnsembleCritic(BaseEnsembleCritic):
 
             if traj_weight > 0.:
                 old_uncertainty = 1. / traj_weight
-                new_uncertainty = old_uncertainty + self.process_noise * (self.n_process_steps_elapsed - info.traj_last_visited)
+                new_uncertainty = old_uncertainty + core.process_noise * (core.n_process_steps_elapsed - info.traj_last_visited)
                 traj_mul += log(old_uncertainty / new_uncertainty)
                 traj_weight = 1. / new_uncertainty
 
@@ -877,17 +894,13 @@ cdef class EnsembleCritic(BaseEnsembleCritic):
             stepped_weights[step_id] = stepped_weight
             stepped_muls[step_id] = stepped_mul
 
-            info.traj_last_visited = self.n_process_steps_elapsed
+            info.traj_last_visited = core.n_process_steps_elapsed
 
 
-cdef class TracedEnsembleCritic(EnsembleCritic):
-    """Ensemble Fitness Critic for eligibility traces using lookup table as underlying functional model
+class TracedEnsembleCritic(EnsembleCritic[ObservationT, ActionT]):
+    """Ensemble Fitness Critic for eligibility traces using lookup table as underlying functional model"""
 
-    Inherit at your own risk; there are no getters or setters to override.
-    """
-    cdef public double trace_sustain
-
-    def __init__(self, all_keys: Iterable[Hashable], n_steps, has_only_observation_as_key = False):
+    def __init__(self, all_keys: Iterable[ExperienceT], n_steps, has_only_observation_as_key = False):
         EnsembleCritic.__init__(self, all_keys, n_steps, has_only_observation_as_key)
         self.trace_sustain = 0.
 
@@ -898,20 +911,18 @@ cdef class TracedEnsembleCritic(EnsembleCritic):
         return critic
 
 
-cdef class CombinedEnsembleCritic(BaseEnsembleCritic):
+class CombinedEnsembleCritic(BaseEnsembleCritic[ObservationT, ActionT]):
     """The Combined Ensemble Fitness Critic using lookup table as underlying functional model.
         Instead of rewards, Combined Ensemble Fitness Critic uses the combined
         replacement value that results from multiple sub-step critic
         (e.g. For Advantage and Bidirectional Critics)
 
-    Compiled with Cython for speedy access/modification.
-    Inherit at your own risk; there are no getters or setters to override for some attributes.
     """
 
     def update(
             self,
-            observations: Sequence[Hashable],
-            actions: Sequence[Hashable],
+            observations: Sequence[ObservationT],
+            actions: Sequence[ActionT],
             replacement_values: Sequence[float],
             replacement_weights: Sequence[float]
     ):
@@ -940,21 +951,23 @@ cdef class CombinedEnsembleCritic(BaseEnsembleCritic):
         cdef list stepped_weights
         cdef list stepped_muls
 
-        validate_trajectory_size_to_n_steps(self.n_steps, observations, actions)
+        cdef BaseEnsembleCriticCore core = self.core
 
-        if len(replacement_weights) != self.n_steps:
+        validate_trajectory_size_to_n_steps(core.n_steps, observations, actions)
+
+        if len(replacement_weights) != core.n_steps:
             raise (
                 ValueError(
                     f"The number of replacement weights (len(replacement_weights) = {len(replacement_weights)}) must "
-                    f"be equal to the number of steps (self.n_steps = {self.n_steps})."
+                    f"be equal to the number of steps (self.core.n_steps = {self.core.n_steps})."
                 )
             )
 
-        if len(replacement_values) != self.n_steps:
+        if len(replacement_values) != core.n_steps:
             raise (
                 ValueError(
                     f"The number of replacement values (len(replacement_values) = {len(replacement_values)}) must "
-                    f"be equal to the number of steps (self.n_steps = {self.n_steps})."
+                    f"be equal to the number of steps (self.core.n_steps = {self.core.n_steps})."
                 )
             )
 
@@ -962,12 +975,12 @@ cdef class CombinedEnsembleCritic(BaseEnsembleCritic):
             observation = observations[step_id]
             action = actions[step_id]
 
-            if self.has_only_observation_as_key:
-                key = observation
+            if core.has_only_observation_as_key:
+                key = (observation, None)
             else:
                 key = (observation, action)
 
-            info = self.info[key]
+            info = core.info[key]
             stepped_values = info.stepped_values
             stepped_weights = info.stepped_weights
             stepped_muls = info.stepped_muls
@@ -981,7 +994,7 @@ cdef class CombinedEnsembleCritic(BaseEnsembleCritic):
 
             if traj_weight > 0.:
                 old_uncertainty = 1. / traj_weight
-                new_uncertainty = old_uncertainty + self.process_noise * (self.n_process_steps_elapsed - info.traj_last_visited)
+                new_uncertainty = old_uncertainty + core.process_noise * (core.n_process_steps_elapsed - info.traj_last_visited)
                 traj_mul += log(old_uncertainty / new_uncertainty)
                 traj_weight = 1. / new_uncertainty
 
@@ -1011,16 +1024,13 @@ cdef class CombinedEnsembleCritic(BaseEnsembleCritic):
             stepped_weights[step_id] = stepped_weight
             stepped_muls[step_id] = stepped_mul
 
-            info.traj_last_visited = self.n_process_steps_elapsed
+            info.traj_last_visited = core.n_process_steps_elapsed
 
-cdef class TracedCombinedEnsembleCritic(CombinedEnsembleCritic):
-    """Combined Ensemble Fitness Critic for eligibility traces using lookup table as underlying functional model
+class TracedCombinedEnsembleCritic(CombinedEnsembleCritic[ObservationT, ActionT]):
+    """Combined Ensemble Fitness Critic for eligibility traces using lookup table as underlying functional model"""
 
-    Inherit at your own risk; there are no getters or setters to override.
-    """
-    cdef public double trace_sustain
 
-    def __init__(self, all_keys: Iterable[Hashable], n_steps, has_only_observation_as_key = False):
+    def __init__(self, all_keys: Iterable[ExperienceT], n_steps, has_only_observation_as_key = False):
         CombinedEnsembleCritic.__init__(self, all_keys, n_steps, has_only_observation_as_key)
         self.trace_sustain = 0.
 
@@ -1031,9 +1041,9 @@ cdef class TracedCombinedEnsembleCritic(CombinedEnsembleCritic):
         return critic
 
 
-class TwCritic(Critic):
+class TwCritic(Critic[ObservationT, ActionT]):
 
-    def targets(self, observations: Sequence[Hashable], actions: Sequence[Hashable], rewards: Sequence[float]) -> Sequence[float]:
+    def targets(self, observations: Sequence[ObservationT], actions: Sequence[ActionT], rewards: Sequence[float]) -> Sequence[float]:
         validate_trajectory_size(observations, actions, rewards)
 
         if self.fn_aggregation is not seq_mean:
@@ -1054,7 +1064,7 @@ class TwCritic(Critic):
         targets = [step_evals[i] + error/n_steps for i in range(n_steps)]
         return targets
 
-    # def update(self, observations: Sequence[Hashable], actions: Sequence[Hashable], rewards: Sequence[float]):
+    # def update(self, observations: Sequence[ObservationT], actions: Sequence[ActionT], rewards: Sequence[float]):
     #     validate_trajectory_size(observations, actions, rewards)
     #
     #     n_steps = len(observations)
@@ -1073,8 +1083,8 @@ class TwCritic(Critic):
     #         delta = error * learning_rates[step_id] / n_steps
     #         self.core[(observation, action)] += delta
 
-class SwCritic(Critic):
-    def targets(self, observations: Sequence[Hashable], actions: Sequence[Hashable], rewards: Sequence[float]) -> Sequence[float]:
+class SwCritic(Critic[ObservationT, ActionT]):
+    def targets(self, observations: Sequence[ObservationT], actions: Sequence[ActionT], rewards: Sequence[float]) -> Sequence[float]:
         validate_trajectory_size(observations, actions, rewards)
         n_steps = len(observations)
         fitness = sum(rewards)
@@ -1082,7 +1092,7 @@ class SwCritic(Critic):
         targets = [fitness for i in range(n_steps)]
         return targets
 
-    # def update(self, observations: Sequence[Hashable], actions: Sequence[Hashable], rewards: Sequence[float]):
+    # def update(self, observations: Sequence[ObservationT], actions: Sequence[ActionT], rewards: Sequence[float]):
     #     validate_trajectory_size(observations, actions, rewards)
     #     n_steps = len(observations)
     #
@@ -1100,21 +1110,21 @@ class SwCritic(Critic):
     #         delta = error * learning_rates[step_id]
     #         self.core[(observation, action)] += delta
 
-class SwEnsembleCritic(EnsembleCritic):
+class SwEnsembleCritic(EnsembleCritic[ObservationT, ActionT]):
     """Inherit at your own risk; there are no getters or setters to override for some attributes."""
-    def targets(self, observations: Sequence[Hashable], actions: Sequence[Hashable], rewards: Sequence[float]):
-        validate_trajectory_size_to_n_steps(self.n_steps, observations, actions, rewards)
+    def targets(self, observations: Sequence[ObservationT], actions: Sequence[ActionT], rewards: Sequence[float]):
+        validate_trajectory_size_to_n_steps(self.core.n_steps, observations, actions, rewards)
 
         sum_rewards = sum(rewards)
         targets = [sum_rewards for i in range(len(observations))]
         return targets
 
-class QCritic(TracedCritic):
-    def __init__(self, all_keys: Iterable[Hashable]):
+class QCritic(TracedCritic[ObservationT, ActionT]):
+    def __init__(self, all_keys: Iterable[ExperienceT]):
         TracedCritic.__init__(self, all_keys)
         self.learning_rate_scheme = TrajKalmanLearningRateScheme(all_keys, False)
 
-    def targets(self, observations: Sequence[Hashable], actions: Sequence[Hashable], rewards: Sequence[float]) -> Sequence[float]:
+    def targets(self, observations: Sequence[ObservationT], actions: Sequence[ActionT], rewards: Sequence[float]) -> Sequence[float]:
         validate_trajectory_size(observations, actions, rewards)
         n_steps = len(observations)
 
@@ -1122,7 +1132,7 @@ class QCritic(TracedCritic):
         targets = eligibility_trace_targets(rewards, values, self.trace_sustain)
         return targets
 
-    # def update(self, observations: Sequence[Hashable], actions: Sequence[Hashable], rewards: Sequence[float]):
+    # def update(self, observations: Sequence[ObservationT], actions: Sequence[ActionT], rewards: Sequence[float]):
     #     validate_trajectory_size(observations, actions, rewards)
     #     n_steps = len(observations)
     #
@@ -1137,10 +1147,10 @@ class QCritic(TracedCritic):
     #         self.core[(observations[step_id], actions[step_id])] += learning_rates[step_id] * delta
 
 
-class QEnsembleCritic(TracedEnsembleCritic):
+class QEnsembleCritic(TracedEnsembleCritic[ObservationT, ActionT]):
     """Inherit at your own risk; there are no getters or setters to override for some attributes."""
-    def targets(self, observations: Sequence[Hashable], actions: Sequence[Hashable], rewards: Sequence[float]) -> Sequence[float]:
-        validate_trajectory_size_to_n_steps(self.n_steps, observations, actions, rewards)
+    def targets(self, observations: Sequence[ObservationT], actions: Sequence[ActionT], rewards: Sequence[float]) -> Sequence[float]:
+        validate_trajectory_size_to_n_steps(self.core.n_steps, observations, actions, rewards)
         n_steps = len(observations)
         stepped_values = self.stepped_values(observations, actions)
         targets = eligibility_trace_targets(rewards, stepped_values, self.trace_sustain)
@@ -1148,13 +1158,12 @@ class QEnsembleCritic(TracedEnsembleCritic):
         return targets
 
 
-class VCritic(TracedCritic):
-    def __init__(self, all_keys: Iterable[Hashable]):
+class VCritic(TracedCritic[ObservationT, Optional[ActionT]]):
+    def __init__(self, all_keys: Iterable[ObservationOnlyT]):
         TracedCritic.__init__(self, all_keys)
         self.learning_rate_scheme = TrajKalmanLearningRateScheme(all_keys, True)
-        self.has_only_observation_as_key = True
 
-    def targets(self, observations: Sequence[Hashable], actions: Sequence[Hashable], rewards: Sequence[float]) -> Sequence[float]:
+    def targets(self, observations: Sequence[ObservationT], actions: Sequence[ActionT], rewards: Sequence[float]) -> Sequence[float]:
         validate_trajectory_size(observations, actions, rewards)
         n_steps = len(observations)
 
@@ -1162,7 +1171,7 @@ class VCritic(TracedCritic):
         targets = eligibility_trace_targets(rewards, values, self.trace_sustain)
         return targets
 
-    # def update(self, observations: Sequence[Hashable], actions: Sequence[Hashable], rewards: Sequence[float]):
+    # def update(self, observations: Sequence[ObservationT], actions: Sequence[ActionT], rewards: Sequence[float]):
     #     validate_trajectory_size(observations, actions, rewards)
     #     n_steps = len(observations)
     #
@@ -1178,14 +1187,13 @@ class VCritic(TracedCritic):
     #         self.core[observations[step_id]] += learning_rates[step_id] * delta
 
 
-class VEnsembleCritic(TracedEnsembleCritic):
+class VEnsembleCritic(TracedEnsembleCritic[ObservationT, Optional[ActionT]]):
     """Inherit at your own risk; there are no getters or setters to override for some attributes."""
-    def __init__(self, all_keys: Iterable[Hashable], n_steps):
-        TracedEnsembleCritic.__init__(self, all_keys, n_steps)
-        self.has_only_observation_as_key = True
+    def __init__(self, all_keys: Iterable[ObservationOnlyT], n_steps):
+        TracedEnsembleCritic.__init__(self, all_keys, n_steps, True)
 
-    def targets(self, observations: Sequence[Hashable], actions: Sequence[Hashable], rewards: Sequence[float]) -> Sequence[float]:
-        validate_trajectory_size_to_n_steps(self.n_steps, observations, actions, rewards)
+    def targets(self, observations: Sequence[ObservationT], actions: Sequence[ActionT], rewards: Sequence[float]) -> Sequence[float]:
+        validate_trajectory_size_to_n_steps(self.core.n_steps, observations, actions, rewards)
         n_steps = len(observations)
 
         stepped_values = self.stepped_values(observations, actions)
@@ -1193,13 +1201,12 @@ class VEnsembleCritic(TracedEnsembleCritic):
 
         return targets
 
-class UCritic(TracedCritic):
-    def __init__(self, all_keys):
+class UCritic(TracedCritic[ObservationT, Optional[ActionT]]):
+    def __init__(self, all_keys: Iterable[ObservationOnlyT]):
         TracedCritic.__init__(self, all_keys)
         self.learning_rate_scheme = TrajKalmanLearningRateScheme(all_keys, True)
-        self.has_only_observation_as_key = True
 
-    def targets(self, observations: Sequence[Hashable], actions: Sequence[Hashable], rewards: Sequence[float]) -> Sequence[float]:
+    def targets(self, observations: Sequence[ObservationT], actions: Sequence[ActionT], rewards: Sequence[float]) -> Sequence[float]:
         validate_trajectory_size(observations, actions, rewards)
         n_steps = len(observations)
 
@@ -1207,7 +1214,7 @@ class UCritic(TracedCritic):
         targets = reverse_eligibility_trace_targets(rewards, values, self.trace_sustain)
         return targets
 
-    # def update(self, observations: Sequence[Hashable], actions: Sequence[Hashable], rewards: Sequence[float]):
+    # def update(self, observations: Sequence[ObservationT], actions: Sequence[ActionT], rewards: Sequence[float]):
     #     validate_trajectory_size(observations, actions, rewards)
     #     n_steps = len(observations)
     #     values = self.step_evals(observations, actions)
@@ -1220,21 +1227,20 @@ class UCritic(TracedCritic):
     #         delta = targets[step_id] - self.core[observations[step_id]]
     #         self.core[observations[step_id]] += learning_rates[step_id] * delta
 
-class UEnsembleCritic(TracedEnsembleCritic):
+class UEnsembleCritic(TracedEnsembleCritic[ObservationT, Optional[ActionT]]):
     """Inherit at your own risk; there are no getters or setters to override for some attributes."""
-    def __init__(self, all_keys: Iterable[Hashable], n_steps):
-        TracedEnsembleCritic.__init__(self, all_keys, n_steps)
-        self.has_only_observation_as_key = True
+    def __init__(self, all_keys: Iterable[ObservationOnlyT], n_steps):
+        TracedEnsembleCritic.__init__(self, all_keys, n_steps, True)
 
-    def targets(self, observations: Sequence[Hashable], actions: Sequence[Hashable], rewards: Sequence[float]) -> Sequence[float]:
-        validate_trajectory_size_to_n_steps(self.n_steps, observations, actions, rewards)
+    def targets(self, observations: Sequence[ObservationT], actions: Sequence[ActionT], rewards: Sequence[float]) -> Sequence[float]:
+        validate_trajectory_size_to_n_steps(self.core.n_steps, observations, actions, rewards)
         n_steps = len(observations)
         stepped_values = self.stepped_values(observations, actions)
         targets = reverse_eligibility_trace_targets(rewards, stepped_values, self.trace_sustain)
 
         return targets
 
-class ABaseCritic:
+class ABaseCritic(Generic[ObservationT, ActionT]):
     def __init__(self):
         raise NotImplementedError("Abstract Method")
 
@@ -1247,16 +1253,16 @@ class ABaseCritic:
         #
         # return critic
 
-    def update(self, observations: Sequence[Hashable], actions: Sequence[Hashable], rewards: Sequence[float]):
+    def update(self, observations: Sequence[ObservationT], actions: Sequence[ActionT], rewards: Sequence[float]):
         validate_trajectory_size(observations, actions, rewards)
         self.v_critic.update(observations, actions, rewards)
         self.q_critic.update(observations, actions, rewards)
 
-    def eval(self, observations: Sequence[Hashable], actions: Sequence[Hashable]) -> float:
+    def eval(self, observations: Sequence[ObservationT], actions: Sequence[ActionT]) -> float:
         validate_trajectory_size(observations, actions)
         return self.fn_aggregation(self.step_evals(observations, actions))
 
-    def step_evals(self, observations: Sequence[Hashable], actions: Sequence[Hashable]) -> Sequence[float]:
+    def step_evals(self, observations: Sequence[ObservationT], actions: Sequence[ActionT]) -> Sequence[float]:
         validate_trajectory_size(observations, actions)
         q_step_evals = self.q_critic.step_evals(observations, actions)
         v_step_evals = self.v_critic.step_evals(observations, actions)
@@ -1277,8 +1283,9 @@ class ABaseCritic:
         self.v_critic.trace_sustain = val
         self.q_critic.trace_sustain = val
 
-class ACritic(ABaseCritic):
-    def __init__(self, all_q_keys: Iterable[Hashable], all_v_keys: Iterable[Hashable]):
+
+class ACritic(ABaseCritic[ObservationT, ActionT]):
+    def __init__(self, all_q_keys: Iterable[ExperienceT], all_v_keys: Iterable[ObservationOnlyT]):
         self.q_critic = QCritic(all_q_keys)
         self.v_critic = VCritic(all_v_keys)
         self.fn_aggregation = seq_mean
@@ -1293,8 +1300,8 @@ class ACritic(ABaseCritic):
         critic.all_q_keys = self.all_q_keys
         critic.all_v_keys = self.all_v_keys
 
-class AEnsembleCritic(ABaseCritic):
-    def __init__(self, all_q_keys: Iterable[Hashable], all_v_keys: Iterable[Hashable], n_steps):
+class AEnsembleCritic(ABaseCritic[ObservationT, ActionT]):
+    def __init__(self, all_q_keys: Iterable[ExperienceT], all_v_keys: Iterable[ObservationOnlyT], n_steps):
         self.q_critic = QEnsembleCritic(all_q_keys, n_steps)
         self.v_critic = VEnsembleCritic(all_v_keys, n_steps)
         self.fn_aggregation = seq_mean
@@ -1312,8 +1319,8 @@ class AEnsembleCritic(ABaseCritic):
         critic.all_v_keys = self.all_v_keys
 
 
-class ACombinedEnsembleCritic:
-    def __init__(self, all_q_keys: Iterable[Hashable],  all_v_keys: Iterable[Hashable], n_steps):
+class ACombinedEnsembleCritic(Generic[ObservationT, ActionT]):
+    def __init__(self, all_q_keys: Iterable[ExperienceT],  all_v_keys: Iterable[ObservationOnlyT], n_steps):
         self.q_critic = QEnsembleCritic(all_q_keys, n_steps)
         self.v_critic = VEnsembleCritic(all_v_keys, n_steps)
         self.core = CombinedEnsembleCritic(all_q_keys, n_steps)
@@ -1334,7 +1341,7 @@ class ACombinedEnsembleCritic:
 
         return critic
 
-    def update(self, observations: Sequence[Hashable], actions: Sequence[Hashable], rewards: Sequence[float]):
+    def update(self, observations: Sequence[ObservationT], actions: Sequence[ActionT], rewards: Sequence[float]):
         validate_trajectory_size_to_n_steps(self.n_steps, observations, actions, rewards)
         self.v_critic.update(observations, actions, rewards)
         self.q_critic.update(observations, actions, rewards)
@@ -1357,11 +1364,11 @@ class ACombinedEnsembleCritic:
 
         self.core.update(observations, actions, replacement_values, replacement_weights)
 
-    def eval(self, observations: Sequence[Hashable], actions: Sequence[Hashable]) -> float:
+    def eval(self, observations: Sequence[ObservationT], actions: Sequence[ActionT]) -> float:
         validate_trajectory_size_to_n_steps(self.n_steps, observations, actions)
         return self.fn_aggregation(self.step_evals(observations, actions))
 
-    def step_evals(self, observations: Sequence[Hashable], actions: Sequence[Hashable]) -> Sequence[float]:
+    def step_evals(self, observations: Sequence[ObservationT], actions: Sequence[ActionT]) -> Sequence[float]:
         validate_trajectory_size_to_n_steps(self.n_steps, observations, actions)
         return self.core.step_evals(observations, actions)
 
@@ -1383,7 +1390,7 @@ class ACombinedEnsembleCritic:
         self.q_critic.trace_sustain = val
 
 
-class BiBaseCritic():
+class BiBaseCritic(Generic[ObservationT, ActionT]):
     def __init__(self):
         raise NotImplementedError("Abstract Method")
 
@@ -1395,16 +1402,16 @@ class BiBaseCritic():
         #
         # return critic
 
-    def update(self, observations: Sequence[Hashable], actions: Sequence[Hashable], rewards: Sequence[float]):
+    def update(self, observations: Sequence[ObservationT], actions: Sequence[ActionT], rewards: Sequence[float]):
         validate_trajectory_size(observations, actions, rewards)
         self.u_critic.update(observations, actions, rewards)
         self.q_critic.update(observations, actions, rewards)
 
-    def eval(self, observations: Sequence[Hashable], actions: Sequence[Hashable]) -> float:
+    def eval(self, observations: Sequence[ObservationT], actions: Sequence[ActionT]) -> float:
         validate_trajectory_size(observations, actions)
         return self.fn_aggregation(self.step_evals(observations, actions))
 
-    def step_evals(self, observations: Sequence[Hashable], actions: Sequence[Hashable]) -> Sequence[float]:
+    def step_evals(self, observations: Sequence[ObservationT], actions: Sequence[ActionT]) -> Sequence[float]:
         validate_trajectory_size(observations, actions)
         q_step_evals = self.q_critic.step_evals(observations, actions)
         u_step_evals = self.u_critic.step_evals(observations, actions)
@@ -1426,8 +1433,8 @@ class BiBaseCritic():
         self.u_critic.trace_sustain = val
         self.q_critic.trace_sustain = val
 
-class BiCritic(BiBaseCritic):
-    def __init__(self, all_q_keys: Iterable[Hashable], all_u_keys: Iterable[Hashable]):
+class BiCritic(BiBaseCritic[ObservationT, ActionT]):
+    def __init__(self, all_q_keys: Iterable[ExperienceT], all_u_keys: Iterable[ObservationOnlyT]):
         self.q_critic = QCritic(all_q_keys)
         self.u_critic = UCritic(all_u_keys)
         self.fn_aggregation = seq_mean
@@ -1444,8 +1451,8 @@ class BiCritic(BiBaseCritic):
 
 
 
-class BiEnsembleCritic(BiBaseCritic):
-    def __init__(self, all_q_keys: Iterable[Hashable], all_u_keys: Iterable[Hashable], n_steps):
+class BiEnsembleCritic(BiBaseCritic[ObservationT, ActionT]):
+    def __init__(self, all_q_keys: Iterable[ExperienceT], all_u_keys: Iterable[ObservationOnlyT], n_steps):
         self.q_critic = QEnsembleCritic(all_q_keys, n_steps)
         self.v_critic = VEnsembleCritic(all_u_keys, n_steps)
         self.fn_aggregation = seq_mean
@@ -1466,8 +1473,8 @@ class BiEnsembleCritic(BiBaseCritic):
     #     self.q_critic = QEnsembleCritic(all_keys_q)
     #     self.u_critic = UEnsembleCritic(all_keys_u)
 
-class BiCombinedEnsembleCritic:
-    def __init__(self, all_q_keys: Iterable[Hashable], all_u_keys: Iterable[Hashable], n_steps):
+class BiCombinedEnsembleCritic(Generic[ObservationT, ActionT]):
+    def __init__(self, all_q_keys: Iterable[ExperienceT], all_u_keys: Iterable[ObservationOnlyT], n_steps):
         self.q_critic = QEnsembleCritic(all_q_keys, n_steps)
         self.u_critic = UEnsembleCritic(all_u_keys, n_steps)
         self.core = CombinedEnsembleCritic(all_q_keys, n_steps)
@@ -1489,7 +1496,7 @@ class BiCombinedEnsembleCritic:
 
         return critic
 
-    def update(self, observations: Sequence[Hashable], actions: Sequence[Hashable], rewards: Sequence[float]):
+    def update(self, observations: Sequence[ObservationT], actions: Sequence[ActionT], rewards: Sequence[float]):
         validate_trajectory_size_to_n_steps(self.n_steps, observations, actions, rewards)
         self.u_critic.update(observations, actions, rewards)
         self.q_critic.update(observations, actions, rewards)
@@ -1512,11 +1519,11 @@ class BiCombinedEnsembleCritic:
 
         self.core.update(observations, actions, replacement_values, replacement_weights)
 
-    def eval(self, observations: Sequence[Hashable], actions: Sequence[Hashable]) -> float:
+    def eval(self, observations: Sequence[ObservationT], actions: Sequence[ActionT]) -> float:
         validate_trajectory_size_to_n_steps(self.n_steps, observations, actions)
         return self.fn_aggregation(self.step_evals(observations, actions))
 
-    def step_evals(self, observations: Sequence[Hashable], actions: Sequence[Hashable]) -> Sequence[float]:
+    def step_evals(self, observations: Sequence[ObservationT], actions: Sequence[ActionT]) -> Sequence[float]:
         validate_trajectory_size_to_n_steps(self.n_steps, observations, actions)
         return self.core.step_evals(observations, actions)
 

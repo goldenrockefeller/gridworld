@@ -26,7 +26,7 @@ def all_observation_target_types():
             yield (observation, target_type)
 
 
-all_observation_keys = list(all_observations())
+all_observation_keys = [(observation, None) for observation in all_observations()]
 all_moving_keys = list(all_observation_moving_actions())
 all_target_keys = list(all_observation_target_types())
 

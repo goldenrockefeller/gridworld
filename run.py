@@ -1,3 +1,4 @@
+import pyximport; pyximport.install()
 from multiagent_gridworld import *
 from runner import *
 from mods import *
