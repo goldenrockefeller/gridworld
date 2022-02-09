@@ -164,27 +164,39 @@ class BasicLearningRateScheme():
     def __init__(self, learning_rate = 0.01):
         self.learning_rate = learning_rate
 
+    def __setstate__(self, state):
+        (self.learning_rate,) = state
+
+    def __getstate__(self):
+        return (self.learning_rate,)
 
     def copy(self):
-
-        scheme = self.__class__(self.learning_rate)
-
-        return scheme
+        the_copy = self.__class__.__new__(self.__class__)
+        the_copy.__setstate__(self.__getstate__())
+        return the_copy
 
     def learning_rates(self, observations: Sequence[Any], actions: Sequence[Any]) -> Sequence[float]:
         validate_trajectory_size(observations, actions)
 
         return [self.learning_rate for _ in range(len(observations))]
 
+
+
 class ReducedLearningRateScheme():
     """Applies a the basic learning rate, scaled by the number of steps"""
     def __init__(self, learning_rate = 0.01):
         self.learning_rate = learning_rate
 
-    def copy(self):
-        scheme = self.__class__(self.learning_rate)
+    def __setstate__(self, state):
+        (self.learning_rate,) = state
 
-        return scheme
+    def __getstate__(self):
+        return (self.learning_rate,)
+
+    def copy(self):
+        the_copy = self.__class__.__new__(self.__class__)
+        the_copy.__setstate__(self.__getstate__())
+        return the_copy
 
     def learning_rates(self, observations: Sequence[Any], actions: Sequence[Any]) -> Sequence[float]:
         validate_trajectory_size(observations, actions)
@@ -216,16 +228,28 @@ class TrajKalmanLearningRateScheme(Generic[ObservationT, ActionT]):
         self.process_noise = 0.
         self.has_only_observation_as_key = has_only_observation_as_key
 
+    def __setstate__(self, state):
+        (
+            p, last_update_seen, self.n_process_steps_elapsed,
+            self.process_noise, self.has_only_observation_as_key
+        ) = (
+            state
+        )
+
+        self.p = p.copy()
+        self.last_update_seen = last_update_seen.copy()
+
+    def __getstate__(self):
+        return (
+            self.p, self.last_update_seen, self.n_process_steps_elapsed,
+            self.process_noise, self.has_only_observation_as_key
+        )
 
     def copy(self):
-        scheme = self.__class__(self.p)
-        scheme.p = self.p.copy()
-        scheme.last_update_seen = self.last_update_seen.copy()
-        scheme.n_process_steps_elapsed = self.n_process_steps_elapsed
-        scheme.process_noise = self.process_noise
-        scheme.has_only_observation_as_key = self.has_only_observation_as_key
+        the_copy = self.__class__.__new__(self.__class__)
+        the_copy.__setstate__(self.__getstate__())
+        return the_copy
 
-        return scheme
 
     def uncertainties(self, observations: Sequence[ObservationT], actions: Sequence[ActionT]) -> Sequence[float]:
 
@@ -325,16 +349,27 @@ class MeanTrajKalmanLearningRateScheme(Generic[ObservationT, ActionT]):
         self.process_noise = 0.
         self.has_only_observation_as_key = has_only_observation_as_key
 
+    def __setstate__(self, state):
+        (
+            p, last_update_seen, self.n_process_steps_elapsed,
+            self.process_noise, self.has_only_observation_as_key
+        ) = (
+            state
+        )
+
+        self.p = p.copy()
+        self.last_update_seen = last_update_seen.copy()
+
+    def __getstate__(self):
+        return (
+            self.p, self.last_update_seen, self.n_process_steps_elapsed,
+            self.process_noise, self.has_only_observation_as_key
+        )
 
     def copy(self):
-        scheme = self.__class__(self.p)
-        scheme.p = self.p.copy()
-        scheme.last_update_seen = self.last_update_seen.copy()
-        scheme.n_process_steps_elapsed = self.n_process_steps_elapsed
-        scheme.process_noise = self.process_noise
-        scheme.has_only_observation_as_key = self.has_only_observation_as_key
-
-        return scheme
+        the_copy = self.__class__.__new__(self.__class__)
+        the_copy.__setstate__(self.__getstate__())
+        return the_copy
 
     def uncertainties(self, observations: Sequence[ObservationT], actions: Sequence[ActionT]) -> Sequence[float]:
         """ Returns parameters uncertanties"""
@@ -465,15 +500,27 @@ class SteppedKalmanLearningRateScheme(Generic[ObservationT, ActionT]):
         self.has_only_observation_as_key = has_only_observation_as_key
 
 
-    def copy(self):
-        scheme = self.__class__(self.p)
-        scheme.p = {key : self.p[key].copy() for key in self.p}
-        scheme.last_update_seen = {key : self.last_update_seen[key].copy() for key in self.last_update_seen}
-        scheme.n_process_steps_elapsed = self.n_process_steps_elapsed
-        scheme.process_noise = self.process_noise
-        scheme.has_only_observation_as_key = self.has_only_observation_as_key
+    def __setstate__(self, state):
+        (
+            p, last_update_seen, self.n_process_steps_elapsed,
+            self.process_noise, self.has_only_observation_as_key
+        ) = (
+            state
+        )
 
-        return scheme
+        self.p = p.copy()
+        self.last_update_seen = last_update_seen.copy()
+
+    def __getstate__(self):
+        return (
+            self.p, self.last_update_seen, self.n_process_steps_elapsed,
+            self.process_noise, self.has_only_observation_as_key
+        )
+
+    def copy(self):
+        the_copy = self.__class__.__new__(self.__class__)
+        the_copy.__setstate__(self.__getstate__())
+        return the_copy
 
     def uncertainties(self, observations: Sequence[ObservationT], actions: Sequence[ActionT]) -> Sequence[float]:
         """ Returns parameters uncertanties"""
@@ -571,13 +618,27 @@ class Critic(Generic[ObservationT, ActionT]):
         self.has_only_observation_as_key = has_only_observation_as_key
         self.fn_aggregation = seq_mean # Note that aggregation  is a reference.
 
-    def copy(self):
-        critic = self.__class__(self.core)
-        critic.learning_rate_scheme = self.learning_rate_scheme.copy()
-        critic.core = self.core.copy()
-        critic.fn_aggregation = self.fn_aggregation # Note that aggregation is a reference.
+    def __setstate__(self, state):
+        (
+            learning_rate_scheme, core,
+            self.has_only_observation_as_key, self.fn_aggregation
+        ) = (
+            state
+        )
 
-        return critic
+        self.learning_rate_scheme = learning_rate_scheme.copy()
+        self.core = core.copy()
+
+    def __getstate__(self):
+        return (
+            self.learning_rate_scheme, self.core,
+            self.has_only_observation_as_key, self.fn_aggregation
+        )
+
+    def copy(self):
+        the_copy = self.__class__.__new__(self.__class__)
+        the_copy.__setstate__(self.__getstate__())
+        return the_copy
 
     def targets(self, observations: Sequence[ObservationT], actions: Sequence[ActionT], rewards: Sequence[float]) -> Sequence[float]:
         raise NotImplementedError("Abstract Method")
@@ -639,11 +700,13 @@ class TracedCritic(Critic[ObservationT, ActionT]):
         Critic.__init__(self, all_keys, has_only_observation_as_key)
         self.trace_sustain = 0.
 
-    def copy(self):
-        critic = Critic.copy(self)
-        critic.trace_sustain = self.trace_sustain
+    def __setstate__(self, state):
+        critic_state, self.trace_sustain = state
+        Critic.__setstate__(self, critic_state)
 
-        return critic
+    def __getstate__(self):
+        return (Critic.__getstate__(self), self.trace_sustain)
+
 
 cdef class EnsembleInfo:
     """All the Ensemble critic information that is associated with one observation-action pair.
@@ -671,19 +734,44 @@ cdef class EnsembleInfo:
         self.n_steps = n_steps
 
 
+    def __setstate__(self, state):
+        (
+            self.traj_value, self.traj_weight, self.traj_mul,
+            self.traj_last_visited, stepped_values, stepped_weights,
+            stepped_muls, self.n_steps
+        ) = (
+            state
+        )
+
+        self.stepped_values = stepped_values.copy()
+        self.stepped_weights = stepped_weights.copy()
+        self.stepped_muls = stepped_muls.copy()
+
+    def __getstate__(self):
+        return (
+            self.traj_value, self.traj_weight, self.traj_mul,
+            self.traj_last_visited, self.stepped_values, self.stepped_weights,
+            self.stepped_muls, self.n_steps
+        )
+
     def copy(self):
-        info = self.__class__(self.n_steps)
-
-        info.traj_value = self.traj_value
-        info.traj_weight = self.traj_weight
-        info.traj_mul = self.traj_mul
-        info.traj_last_visited = self.traj_last_visited
-        info.stepped_values = self.stepped_values.copy()
-        info.stepped_weights = self.stepped_weights.copy()
-        info.stepped_muls = self.stepped_muls.copy()
-        info.n_steps = self.n_steps
-
-        return info
+        the_copy = self.__class__.__new__(self.__class__)
+        the_copy.__setstate__(self.__getstate__())
+        return the_copy
+    #
+    # def copy(self):
+    #     info = self.__class__.__new__(self.__class__)
+    #
+    #     info.traj_value = self.traj_value
+    #     info.traj_weight = self.traj_weight
+    #     info.traj_mul = self.traj_mul
+    #     info.traj_last_visited = self.traj_last_visited
+    #     info.stepped_values = self.stepped_values.copy()
+    #     info.stepped_weights = self.stepped_weights.copy()
+    #     info.stepped_muls = self.stepped_muls.copy()
+    #     info.n_steps = self.n_steps
+    #
+    #     return info
 
 cdef class BaseEnsembleCriticCore():
     """
@@ -697,6 +785,48 @@ cdef class BaseEnsembleCriticCore():
     cdef public object fn_aggregation
     cdef public Py_ssize_t n_steps
 
+    def __init__(self,  all_keys: Iterable[ExperienceT], n_steps, has_only_observation_as_key = False):
+
+        self.info = {key: EnsembleInfo(n_steps) for key in all_keys}
+        self.process_noise = 0.
+        self.n_process_steps_elapsed = 0
+        self.has_only_observation_as_key = has_only_observation_as_key
+        self.fn_aggregation = seq_mean # Note that aggregation  is a reference.
+        self.n_steps = n_steps
+
+    def __setstate__(self, state):
+        (
+            info, self.process_noise, self.n_process_steps_elapsed,
+            self.has_only_observation_as_key, self.fn_aggregation, self.n_steps
+        ) = (
+            state
+        )
+
+        self.info = {key: info[key].copy() for key in info}
+
+    def __getstate__(self):
+        return (
+            self.info, self.process_noise, self.n_process_steps_elapsed,
+            self.has_only_observation_as_key, self.fn_aggregation, self.n_steps
+        )
+
+# (self):
+#
+#         critic = self.__class__(self.core.info, self.core.n_steps)
+#         critic.core.info = {key: self.core.info[key].copy() for key in self.core.info}
+#         critic.core.process_noise = self.core.process_noise
+#         critic.core.n_process_steps_elapsed = self.core.n_process_steps_elapsed
+#         critic.core.has_only_observation_as_key = self.core.has_only_observation_as_key
+#         critic.core.fn_aggregation = self.core.fn_aggregation # Note that aggregation is a reference.
+#         critic.core.n_steps = self.core.n_steps
+#
+#         return criti
+
+    def copy(self):
+        the_copy = self.__class__.__new__(self.__class__)
+        the_copy.__setstate__(self.__getstate__())
+        return the_copy
+
 
 
 class BaseEnsembleCritic(Generic[ObservationT, ActionT]):
@@ -708,29 +838,32 @@ class BaseEnsembleCritic(Generic[ObservationT, ActionT]):
     """
 
     def __init__(self, all_keys: Iterable[ExperienceT], n_steps, has_only_observation_as_key = False):
-        self.core = BaseEnsembleCriticCore()
+        self.core = BaseEnsembleCriticCore(all_keys, n_steps, has_only_observation_as_key)
 
-        core = self.core
+    def __setstate__(self, state):
+        (core,) = state
 
-        core.info = {key: EnsembleInfo(n_steps) for key in all_keys}
-        core.process_noise = 0.
-        core.n_process_steps_elapsed = 0
-        core.has_only_observation_as_key = has_only_observation_as_key
-        core.fn_aggregation = seq_mean # Note that aggregation  is a reference.
-        core.n_steps = n_steps
+        self.core = core.copy()
 
+    def __getstate__(self):
+        return (self.core,)
 
     def copy(self):
+        the_copy = self.__class__.__new__(self.__class__)
+        the_copy.__setstate__(self.__getstate__())
+        return the_copy
 
-        critic = self.__class__(self.core.info, self.core.n_steps)
-        critic.core.info = {key: self.core.info[key].copy() for key in self.core.info}
-        critic.core.process_noise = self.core.process_noise
-        critic.core.n_process_steps_elapsed = self.core.n_process_steps_elapsed
-        critic.core.has_only_observation_as_key = self.core.has_only_observation_as_key
-        critic.core.fn_aggregation = self.core.fn_aggregation # Note that aggregation is a reference.
-        critic.core.n_steps = self.core.n_steps
-
-        return critic
+    # def copy(self):
+    #
+    #     critic = self.__class__(self.core.info, self.core.n_steps)
+    #     critic.core.info = {key: self.core.info[key].copy() for key in self.core.info}
+    #     critic.core.process_noise = self.core.process_noise
+    #     critic.core.n_process_steps_elapsed = self.core.n_process_steps_elapsed
+    #     critic.core.has_only_observation_as_key = self.core.has_only_observation_as_key
+    #     critic.core.fn_aggregation = self.core.fn_aggregation # Note that aggregation is a reference.
+    #     critic.core.n_steps = self.core.n_steps
+    #
+    #     return critic
 
 
     def advance_process(self):
@@ -904,11 +1037,18 @@ class TracedEnsembleCritic(EnsembleCritic[ObservationT, ActionT]):
         EnsembleCritic.__init__(self, all_keys, n_steps, has_only_observation_as_key)
         self.trace_sustain = 0.
 
-    def copy(self):
-        critic = EnsembleCritic.copy(self)
-        critic.trace_sustain = self.trace_sustain
+    def __setstate__(self, state):
+        ensemble_critic_state, self.trace_sustain = state
+        EnsembleCritic.__setstate__(self, ensemble_critic_state)
 
-        return critic
+    def __getstate__(self):
+        return (EnsembleCritic.__getstate__(self), self.trace_sustain )
+
+    # def copy(self):
+    #     critic = EnsembleCritic.copy(self)
+    #     critic.trace_sustain = self.trace_sustain
+    #
+    #     return critic
 
 
 class CombinedEnsembleCritic(BaseEnsembleCritic[ObservationT, ActionT]):
@@ -1034,11 +1174,18 @@ class TracedCombinedEnsembleCritic(CombinedEnsembleCritic[ObservationT, ActionT]
         CombinedEnsembleCritic.__init__(self, all_keys, n_steps, has_only_observation_as_key)
         self.trace_sustain = 0.
 
-    def copy(self):
-        critic = CombinedEnsembleCritic.copy(self)
-        critic.trace_sustain = self.trace_sustain
+    def __setstate__(self, state):
+        combined_ensemble_critic_state, self.trace_sustain = state
+        CombinedEnsembleCritic.__setstate__(self, combined_ensemble_critic_state)
 
-        return critic
+    def __getstate__(self):
+        return (CombinedEnsembleCritic.__getstate__(self), self.trace_sustain )
+
+    # def copy(self):
+    #     critic = CombinedEnsembleCritic.copy(self)
+    #     critic.trace_sustain = self.trace_sustain
+    #
+    #     return critic
 
 
 class TwCritic(Critic[ObservationT, ActionT]):
@@ -1160,7 +1307,7 @@ class QEnsembleCritic(TracedEnsembleCritic[ObservationT, ActionT]):
 
 class VCritic(TracedCritic[ObservationT, Optional[ActionT]]):
     def __init__(self, all_keys: Iterable[ObservationOnlyT]):
-        TracedCritic.__init__(self, all_keys)
+        TracedCritic.__init__(self, all_keys, True)
         self.learning_rate_scheme = TrajKalmanLearningRateScheme(all_keys, True)
 
     def targets(self, observations: Sequence[ObservationT], actions: Sequence[ActionT], rewards: Sequence[float]) -> Sequence[float]:
@@ -1203,7 +1350,7 @@ class VEnsembleCritic(TracedEnsembleCritic[ObservationT, Optional[ActionT]]):
 
 class UCritic(TracedCritic[ObservationT, Optional[ActionT]]):
     def __init__(self, all_keys: Iterable[ObservationOnlyT]):
-        TracedCritic.__init__(self, all_keys)
+        TracedCritic.__init__(self, all_keys, True)
         self.learning_rate_scheme = TrajKalmanLearningRateScheme(all_keys, True)
 
     def targets(self, observations: Sequence[ObservationT], actions: Sequence[ActionT], rewards: Sequence[float]) -> Sequence[float]:
@@ -1244,8 +1391,23 @@ class ABaseCritic(Generic[ObservationT, ActionT]):
     def __init__(self):
         raise NotImplementedError("Abstract Method")
 
-    def copy(self):
+    def __setstate__(self, state):
         raise NotImplementedError("Abstract Method")
+        # (core,) = state
+        #
+        # self.core = core.copy()
+
+    def __getstate__(self):
+        raise NotImplementedError("Abstract Method")
+        # return self.core
+
+    def copy(self):
+        the_copy = self.__class__.__new__(self.__class__)
+        the_copy.__setstate__(self.__getstate__())
+        return the_copy
+
+    # def copy(self):
+    #     raise NotImplementedError("Abstract Method")
         # critic = self.__class__(all_keys, all_keys)
         # critic.v_critic = self.v_critic.copy()
         # critic.q_critic = self.q_critic.copy()
@@ -1289,16 +1451,25 @@ class ACritic(ABaseCritic[ObservationT, ActionT]):
         self.q_critic = QCritic(all_q_keys)
         self.v_critic = VCritic(all_v_keys)
         self.fn_aggregation = seq_mean
-        self.all_q_keys = all_q_keys
-        self.all_v_keys = all_v_keys
+        # self.all_q_keys = all_q_keys
+        # self.all_v_keys = all_v_keys
 
-    def copy(self):
-        critic = self.__class__(self.all_q_keys, self.all_v_keys)
-        critic.q_critic = self.q_critic.copy()
-        critic.v_critic = self.v_critic.copy()
-        critic.fn_aggregation = self.fn_aggregation
-        critic.all_q_keys = self.all_q_keys
-        critic.all_v_keys = self.all_v_keys
+    def __setstate__(self, state):
+        q_critic, v_critic, self.fn_aggregation = state
+
+        self.q_critic = q_critic.copy()
+        self.v_critic = v_critic.copy()
+
+    def __getstate__(self):
+        return (self.q_critic, self.v_critic, self.fn_aggregation)
+
+    # def copy(self):
+    #     critic = self.__class__(self.all_q_keys, self.all_v_keys)
+    #     critic.q_critic = self.q_critic.copy()
+    #     critic.v_critic = self.v_critic.copy()
+    #     critic.fn_aggregation = self.fn_aggregation
+    #     critic.all_q_keys = self.all_q_keys
+    #     critic.all_v_keys = self.all_v_keys
 
 class AEnsembleCritic(ABaseCritic[ObservationT, ActionT]):
     def __init__(self, all_q_keys: Iterable[ExperienceT], all_v_keys: Iterable[ObservationOnlyT], n_steps):
@@ -1306,17 +1477,27 @@ class AEnsembleCritic(ABaseCritic[ObservationT, ActionT]):
         self.v_critic = VEnsembleCritic(all_v_keys, n_steps)
         self.fn_aggregation = seq_mean
         self.n_steps = n_steps
-        self.all_q_keys = all_q_keys
-        self.all_v_keys = all_v_keys
+        # self.all_q_keys = all_q_keys
+        # self.all_v_keys = all_v_keys
 
-    def copy(self):
-        critic = self.__class__(self.all_q_keys, self.all_v_keys, self.n_steps)
-        critic.q_critic = self.q_critic.copy()
-        critic.v_critic = self.v_critic.copy()
-        critic.fn_aggregation = self.fn_aggregation
-        critic.n_steps = self.n_steps
-        critic.all_q_keys = self.all_q_keys
-        critic.all_v_keys = self.all_v_keys
+
+    def __setstate__(self, state):
+        q_critic, v_critic, self.fn_aggregation, self.n_steps = state
+
+        self.q_critic = q_critic.copy()
+        self.v_critic = v_critic.copy()
+
+    def __getstate__(self):
+        return (self.q_critic, self.v_critic, self.fn_aggregation, self.n_steps)
+
+    # def copy(self):
+    #     critic = self.__class__(self.all_q_keys, self.all_v_keys, self.n_steps)
+    #     critic.q_critic = self.q_critic.copy()
+    #     critic.v_critic = self.v_critic.copy()
+    #     critic.fn_aggregation = self.fn_aggregation
+    #     critic.n_steps = self.n_steps
+        # critic.all_q_keys = self.all_q_keys
+        # critic.all_v_keys = self.all_v_keys
 
 
 class ACombinedEnsembleCritic(Generic[ObservationT, ActionT]):
@@ -1326,20 +1507,43 @@ class ACombinedEnsembleCritic(Generic[ObservationT, ActionT]):
         self.core = CombinedEnsembleCritic(all_q_keys, n_steps)
         self.fn_aggregation = seq_mean
         self.n_steps = n_steps
-        self.all_q_keys = all_q_keys
-        self.all_v_keys = all_v_keys
+        # self.all_q_keys = all_q_keys
+        # self.all_v_keys = all_v_keys
+
+    def __setstate__(self, state):
+        q_critic, v_critic, core, self.fn_aggregation, self.n_steps = state
+
+        self.q_critic = q_critic.copy()
+        self.v_critic = v_critic.copy()
+        self.core = core.copy()
+
+        # (core,) = state
+        #
+        # self.core = core.copy()
+
+    def __getstate__(self):
+        return (
+            self.q_critic, self.v_critic, self.core, self.fn_aggregation,
+            self.n_steps
+        )
 
     def copy(self):
-        critic = self.__class__(self.all_q_keys, self.all_v_keys, self.n_steps)
-        critic.v_critic = self.v_critic.copy()
-        critic.q_critic = self.q_critic.copy()
-        critic.core = self.core.copy()
-        critic.fn_aggregation = self.fn_aggregation
-        critic.n_steps = self.n_steps
-        critic.all_q_keys = self.all_q_keys
-        critic.all_v_keys = self.all_v_keys
+        the_copy = self.__class__.__new__(self.__class__)
+        the_copy.__setstate__(self.__getstate__())
+        return the_copy
 
-        return critic
+    #
+    # def copy(self):
+    #     critic = self.__class__(self.all_q_keys, self.all_v_keys, self.n_steps)
+    #     critic.v_critic = self.v_critic.copy()
+    #     critic.q_critic = self.q_critic.copy()
+    #     critic.core = self.core.copy()
+    #     critic.fn_aggregation = self.fn_aggregation
+    #     critic.n_steps = self.n_steps
+    #     # critic.all_q_keys = self.all_q_keys
+    #     # critic.all_v_keys = self.all_v_keys
+    #
+    #     return critic
 
     def update(self, observations: Sequence[ObservationT], actions: Sequence[ActionT], rewards: Sequence[float]):
         validate_trajectory_size_to_n_steps(self.n_steps, observations, actions, rewards)
@@ -1394,9 +1598,24 @@ class BiBaseCritic(Generic[ObservationT, ActionT]):
     def __init__(self):
         raise NotImplementedError("Abstract Method")
 
-    def copy(self):
+    def __setstate__(self, state):
         raise NotImplementedError("Abstract Method")
-        # critic = self.__class__(self.q_critic.all_keys, self.u_critic.all_keys)
+        # (core,) = state
+        #
+        # self.core = core.copy()
+
+    def __getstate__(self):
+        raise NotImplementedError("Abstract Method")
+        # return self.core
+
+    def copy(self):
+        the_copy = self.__class__.__new__(self.__class__)
+        the_copy.__setstate__(self.__getstate__())
+        return the_copy
+
+    # def copy(self):
+    #     raise NotImplementedError("Abstract Method")
+    #     # critic = self.__class__(self.q_critic.all_keys, self.u_critic.all_keys)
         # critic.u_critic = self.u_critic.copy()
         # critic.q_critic = self.q_critic.copy()
         #
@@ -1438,36 +1657,58 @@ class BiCritic(BiBaseCritic[ObservationT, ActionT]):
         self.q_critic = QCritic(all_q_keys)
         self.u_critic = UCritic(all_u_keys)
         self.fn_aggregation = seq_mean
-        self.all_q_keys = all_q_keys
-        self.all_u_keys = all_u_keys
+        # self.all_q_keys = all_q_keys
+        # self.all_u_keys = all_u_keys
 
-    def copy(self):
-        critic = self.__class__(self.all_q_keys, self.all_u_keys)
-        critic.q_critic = self.q_critic.copy()
-        critic.u_critic = self.u_critic.copy()
-        critic.fn_aggregation = self.fn_aggregation
-        critic.all_q_keys = self.all_q_keys
-        critic.all_u_keys = self.all_u_keys
+
+    def __setstate__(self, state):
+        q_critic, u_critic, self.fn_aggregation = state
+
+        self.q_critic = q_critic.copy()
+        self.u_critic = u_critic.copy()
+
+    def __getstate__(self):
+        return (self.q_critic, self.u_critic, self.fn_aggregation)
+
+    #
+    # def copy(self):
+    #     critic = self.__class__(self.all_q_keys, self.all_u_keys)
+    #     critic.q_critic = self.q_critic.copy()
+    #     critic.u_critic = self.u_critic.copy()
+    #     critic.fn_aggregation = self.fn_aggregation
+    #     critic.all_q_keys = self.all_q_keys
+    #     critic.all_u_keys = self.all_u_keys
 
 
 
 class BiEnsembleCritic(BiBaseCritic[ObservationT, ActionT]):
     def __init__(self, all_q_keys: Iterable[ExperienceT], all_u_keys: Iterable[ObservationOnlyT], n_steps):
         self.q_critic = QEnsembleCritic(all_q_keys, n_steps)
-        self.v_critic = VEnsembleCritic(all_u_keys, n_steps)
+        self.u_critic = UEnsembleCritic(all_u_keys, n_steps)
         self.fn_aggregation = seq_mean
         self.n_steps = n_steps
-        self.all_q_keys = all_q_keys
-        self.all_u_keys = all_u_keys
+        # self.all_q_keys = all_q_keys
+        # self.all_u_keys = all_u_keys
 
-    def copy(self):
-        critic = self.__class__(self.all_q_keys, self.all_u_keys, self.n_steps)
-        critic.q_critic = self.q_critic.copy()
-        critic.v_critic = self.v_critic.copy()
-        critic.fn_aggregation = self.fn_aggregation
-        critic.n_steps = self.n_steps
-        critic.all_q_keys = self.all_q_keys
-        critic.all_u_keys = self.all_u_keys
+
+    def __setstate__(self, state):
+        q_critic, u_critic, self.fn_aggregation, self.n_steps = state
+
+        self.q_critic = q_critic.copy()
+        self.u_critic = u_critic.copy()
+
+    def __getstate__(self):
+        return (self.q_critic, self.u_critic, self.fn_aggregation, self.n_steps)
+
+
+    # def copy(self):
+    #     critic = self.__class__(self.all_q_keys, self.all_u_keys, self.n_steps)
+    #     critic.q_critic = self.q_critic.copy()
+    #     critic.v_critic = self.v_critic.copy()
+    #     critic.fn_aggregation = self.fn_aggregation
+    #     critic.n_steps = self.n_steps
+        # critic.all_q_keys = self.all_q_keys
+        # critic.all_u_keys = self.all_u_keys
 
     # def __init__(self, all_keys_q, all_keys_u):
     #     self.q_critic = QEnsembleCritic(all_keys_q)
@@ -1480,21 +1721,42 @@ class BiCombinedEnsembleCritic(Generic[ObservationT, ActionT]):
         self.core = CombinedEnsembleCritic(all_q_keys, n_steps)
         self.fn_aggregation = seq_mean
         self.n_steps = n_steps
-        self.all_q_keys = all_q_keys
-        self.all_u_keys = all_u_keys
+        # self.all_q_keys = all_q_keys
+        # self.all_u_keys = all_u_keys
 
+    def __setstate__(self, state):
+        q_critic, u_critic, core, self.fn_aggregation, self.n_steps = state
+
+        self.q_critic = q_critic.copy()
+        self.u_critic = u_critic.copy()
+        self.core = core.copy()
+
+        # (core,) = state
+        #
+        # self.core = core.copy()
+
+    def __getstate__(self):
+        return (
+            self.q_critic, self.u_critic, self.core, self.fn_aggregation,
+            self.n_steps
+        )
 
     def copy(self):
-        critic = self.__class__(self.all_q_keys, self.all_u_keys, self.n_steps)
-        critic.u_critic = self.u_critic.copy()
-        critic.q_critic = self.q_critic.copy()
-        critic.core = self.core.copy()
-        critic.fn_aggregation = self.fn_aggregation
-        critic.n_steps = self.n_steps
-        critic.all_q_keys = self.all_q_keys
-        critic.all_u_keys = self.all_u_keys
+        the_copy = self.__class__.__new__(self.__class__)
+        the_copy.__setstate__(self.__getstate__())
+        return the_copy
 
-        return critic
+    # def copy(self):
+    #     critic = self.__class__(self.all_q_keys, self.all_u_keys, self.n_steps)
+    #     critic.u_critic = self.u_critic.copy()
+    #     critic.q_critic = self.q_critic.copy()
+    #     critic.core = self.core.copy()
+    #     critic.fn_aggregation = self.fn_aggregation
+    #     critic.n_steps = self.n_steps
+    #     critic.all_q_keys = self.all_q_keys
+    #     critic.all_u_keys = self.all_u_keys
+    #
+    #     return critic
 
     def update(self, observations: Sequence[ObservationT], actions: Sequence[ActionT], rewards: Sequence[float]):
         validate_trajectory_size_to_n_steps(self.n_steps, observations, actions, rewards)
