@@ -28,7 +28,7 @@
 # a "key" is either an observation, or an observation-action pair.
 
 
-from typing import  Sequence, Iterable, Any, Optional, Hashable, Mapping, Tuple, Generic, MutableMapping, TypeVar
+from typing import  Sequence, Iterable, Optional, Hashable, Mapping, Tuple, Generic, MutableMapping, TypeVar
 
 import numpy as np
 from libc.math cimport log, exp
@@ -39,7 +39,8 @@ ExperienceT = Tuple[ObservationT, ActionT]
 ObservationOnlyT = Tuple[ObservationT, None]
 ValueT = TypeVar("ValueT")
 ExperienceMappingT = MutableMapping[Tuple[ObservationT, Optional[ActionT]], ValueT] # Many attributes have this type, but it too much work to add it in right now.
-
+T = TypeVar("T")
+U = TypeVar("U")
 
 # Cache random numbers for speed, and avoid python overhead.
 random_cache_size = 10000
@@ -57,8 +58,8 @@ def random_uniform():
     return val
 
 def validate_trajectory_size(
-        observations: Sequence[Any],
-        actions: Sequence[Any],
+        observations: Sequence[T],
+        actions: Sequence[U],
         rewards: Optional[Sequence[float]] = None,
 ):
     if len(observations) != len(actions):
@@ -81,8 +82,8 @@ def validate_trajectory_size(
 
 def validate_trajectory_size_to_n_steps(
         n_steps,
-        observations: Sequence[Any],
-        actions: Sequence[Any],
+        observations: Sequence[T],
+        actions: Sequence[U],
         rewards: Optional[Sequence[float]] = None,
 ):
     if len(observations) != n_steps:
@@ -175,7 +176,7 @@ class BasicLearningRateScheme():
         the_copy.__setstate__(self.__getstate__())
         return the_copy
 
-    def learning_rates(self, observations: Sequence[Any], actions: Sequence[Any]) -> Sequence[float]:
+    def learning_rates(self, observations: Sequence[T], actions: Sequence[U]) -> Sequence[float]:
         validate_trajectory_size(observations, actions)
 
         return [self.learning_rate for _ in range(len(observations))]
@@ -198,7 +199,7 @@ class ReducedLearningRateScheme():
         the_copy.__setstate__(self.__getstate__())
         return the_copy
 
-    def learning_rates(self, observations: Sequence[Any], actions: Sequence[Any]) -> Sequence[float]:
+    def learning_rates(self, observations: Sequence[T], actions: Sequence[U]) -> Sequence[float]:
         validate_trajectory_size(observations, actions)
 
 
