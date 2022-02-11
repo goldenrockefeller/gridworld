@@ -1,6 +1,5 @@
 import pyximport; pyximport.install()
-from multiagent_gridworld import *
-from runner import *
+from runner import Runner
 from mods import *
 import itertools
 import random
@@ -13,7 +12,7 @@ import cProfile, pstats
 # (I know that it is in alpha as on now Feb 03 2022, but it is the more developed version)
 
 def run():
-    experiment_name = "E1_MAG"
+    experiment_name = "test"
     n_stats_run_per_process = 1
 
     # Codes
@@ -57,31 +56,31 @@ def run():
 
 if __name__ == '__main__':
 
-    # r = Runner('test', (bi_ce_et(1, 0.),))
-    #
-    #
-    # profiler = cProfile.Profile()
-    # profiler.enable()
-    #
-    #
-    # r.new_run()
-    #
-    # profiler.disable()
-    # stats = pstats.Stats(profiler).sort_stats('tottime')
-    # stats.print_stats()
-    #
-    n_processes = int(sys.argv[1])
-    print(f"Number of processes: {n_processes}")
-
-    if n_processes == 1:
-        run()
-    else:
-        processes = [Process(target = run) for _ in range(n_processes)]
-
-        for process in processes:
-            process.start()
-            sleep(2)
+    r = Runner('test', (bi_ce_et(1, 0.),))
 
 
-        for process in processes:
-            process.join()
+    profiler = cProfile.Profile()
+    profiler.enable()
+
+
+    r.new_run()
+
+    profiler.disable()
+    stats = pstats.Stats(profiler).sort_stats('cumtime')
+    stats.print_stats()
+
+    # n_processes = int(sys.argv[1])
+    # print(f"Number of processes: {n_processes}")
+    #
+    # if n_processes == 1:
+    #     run()
+    # else:
+    #     processes = [Process(target = run) for _ in range(n_processes)]
+    #
+    #     for process in processes:
+    #         process.start()
+    #         sleep(2)
+    #
+    #
+    #     for process in processes:
+    #         process.join()

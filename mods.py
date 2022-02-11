@@ -11,22 +11,22 @@
 
 
 
-from multiagent_gridworld import *
+from domain import all_observations, all_moving_actions, all_target_types
 
 from critic import *
 
 def all_observation_moving_actions():
-    for observation in all_observations():
-        for moving_action in all_moving_actions():
+    for observation in all_observations:
+        for moving_action in all_moving_actions:
             yield (observation, moving_action)
 
 def all_observation_target_types():
-    for observation in all_observations():
-        for target_type in all_target_types():
+    for observation in all_observations:
+        for target_type in all_target_types:
             yield (observation, target_type)
 
 
-all_observation_keys = [(observation, None) for observation in all_observations()]
+all_observation_keys = [(observation, None) for observation in all_observations]
 all_moving_keys = list(all_observation_moving_actions())
 all_target_keys = list(all_observation_target_types())
 
@@ -58,19 +58,19 @@ all_target_keys = list(all_observation_target_types())
 
 
 def noc(args):
-    args["moving_critic"] =  None
-    args["targetting_critic"] =  None
+    args["moving_critic_template"] =  None
+    args["targetting_critic_template"] =  None
 
 def tw(args):
     n_steps = args["n_steps"]
 
-    args["moving_critic"] = TwCritic(all_moving_keys)
-    args["moving_critic"].learning_rate_scheme = MeanTrajKalmanLearningRateScheme(args["moving_critic"].core)
-    args["moving_critic"].learning_rate_scheme.process_noise = args["process_noise"]
+    args["moving_critic_template"] = TwCritic(all_moving_keys)
+    args["moving_critic_template"].learning_rate_scheme = MeanTrajKalmanLearningRateScheme(args["moving_critic_template"].core)
+    args["moving_critic_template"].learning_rate_scheme.process_noise = args["process_noise"]
 
-    args["targetting_critic"] = TwCritic(all_target_keys)
-    args["targetting_critic"].learning_rate_scheme = MeanTrajKalmanLearningRateScheme(args["targetting_critic"].core)
-    args["targetting_critic"].learning_rate_scheme.process_noise = args["process_noise"]
+    args["targetting_critic_template"] = TwCritic(all_target_keys)
+    args["targetting_critic_template"].learning_rate_scheme = MeanTrajKalmanLearningRateScheme(args["targetting_critic_template"].core)
+    args["targetting_critic_template"].learning_rate_scheme.process_noise = args["process_noise"]
 
 #
 # def msc(args):
@@ -78,14 +78,14 @@ def tw(args):
 #
 #
 #     moving_model = moving_stepped_q_model(n_steps)
-#     args["moving_critic"] = TwSteppedCritic(moving_model)
-#     args["moving_critic"].learning_rate_scheme = MeanSteppedKalmanLearningRateScheme(args["moving_critic"].core)
-#     args["moving_critic"].learning_rate_scheme.process_noise = args["process_noise"]
+#     args["moving_critic_template"] = TwSteppedCritic(moving_model)
+#     args["moving_critic_template"].learning_rate_scheme = MeanSteppedKalmanLearningRateScheme(args["moving_critic_template"].core)
+#     args["moving_critic_template"].learning_rate_scheme.process_noise = args["process_noise"]
 #
 #     targetting_model = targetting_stepped_q_model(n_steps)
-#     args["targetting_critic"] = TwSteppedCritic(targetting_model)
-#     args["targetting_critic"].learning_rate_scheme = MeanSteppedKalmanLearningRateScheme(args["targetting_critic"].core)
-#     args["targetting_critic"].learning_rate_scheme.process_noise = args["process_noise"]
+#     args["targetting_critic_template"] = TwSteppedCritic(targetting_model)
+#     args["targetting_critic_template"].learning_rate_scheme = MeanSteppedKalmanLearningRateScheme(args["targetting_critic_template"].core)
+#     args["targetting_critic_template"].learning_rate_scheme.process_noise = args["process_noise"]
 #
 #
 # def m_e(args):
@@ -93,78 +93,78 @@ def tw(args):
 #
 #
 #     moving_model = moving_stepped_q_model(n_steps)
-#     args["moving_critic"] = TwEnsembleCritic(moving_model)
-#     args["moving_critic"].learning_rate_scheme = MeanSteppedKalmanLearningRateScheme(args["moving_critic"].stepped_core)
-#     args["moving_critic"].learning_rate_scheme.process_noise = args["process_noise"]
+#     args["moving_critic_template"] = TwEnsembleCritic(moving_model)
+#     args["moving_critic_template"].learning_rate_scheme = MeanSteppedKalmanLearningRateScheme(args["moving_critic_template"].stepped_core)
+#     args["moving_critic_template"].learning_rate_scheme.process_noise = args["process_noise"]
 #
 #     targetting_model = targetting_stepped_q_model(n_steps)
-#     args["targetting_critic"] = TwEnsembleCritic(targetting_model)
-#     args["targetting_critic"].learning_rate_scheme = MeanSteppedKalmanLearningRateScheme(args["targetting_critic"].stepped_core)
-#     args["targetting_critic"].learning_rate_scheme.process_noise = args["process_noise"]
+#     args["targetting_critic_template"] = TwEnsembleCritic(targetting_model)
+#     args["targetting_critic_template"].learning_rate_scheme = MeanSteppedKalmanLearningRateScheme(args["targetting_critic_template"].stepped_core)
+#     args["targetting_critic_template"].learning_rate_scheme.process_noise = args["process_noise"]
 
 
 def sw(args):
     n_steps = args["n_steps"]
 
-    args["moving_critic"] = SwCritic(all_moving_keys)
-    args["moving_critic"].learning_rate_scheme = TrajKalmanLearningRateScheme(args["moving_critic"].core)
-    args["moving_critic"].learning_rate_scheme.process_noise = args["process_noise"]
+    args["moving_critic_template"] = SwCritic(all_moving_keys)
+    args["moving_critic_template"].learning_rate_scheme = TrajKalmanLearningRateScheme(args["moving_critic_template"].core)
+    args["moving_critic_template"].learning_rate_scheme.process_noise = args["process_noise"]
 
-    args["targetting_critic"] = SwCritic(all_target_keys)
-    args["targetting_critic"].learning_rate_scheme = TrajKalmanLearningRateScheme(args["targetting_critic"].core)
-    args["targetting_critic"].learning_rate_scheme.process_noise = args["process_noise"]
+    args["targetting_critic_template"] = SwCritic(all_target_keys)
+    args["targetting_critic_template"].learning_rate_scheme = TrajKalmanLearningRateScheme(args["targetting_critic_template"].core)
+    args["targetting_critic_template"].learning_rate_scheme.process_noise = args["process_noise"]
 
 # def sw_slow(args):
 #     n_steps = args["n_steps"]
 #
 #     moving_model = moving_traj_q_model(n_steps)
-#     args["moving_critic"] = SwCritic(moving_model)
-#     args["moving_critic"].learning_rate_scheme = TrajKalmanLearningRateScheme(args["moving_critic"].core)
-#     args["moving_critic"].learning_rate_scheme.process_noise = args["process_noise"]
-#     args["moving_critic"].learning_rate = 1. / n_steps
+#     args["moving_critic_template"] = SwCritic(moving_model)
+#     args["moving_critic_template"].learning_rate_scheme = TrajKalmanLearningRateScheme(args["moving_critic_template"].core)
+#     args["moving_critic_template"].learning_rate_scheme.process_noise = args["process_noise"]
+#     args["moving_critic_template"].learning_rate = 1. / n_steps
 #
 #     targetting_model = targetting_traj_q_model(n_steps)
-#     args["targetting_critic"] = SwCritic(targetting_model)
-#     args["targetting_critic"].learning_rate_scheme = TrajKalmanLearningRateScheme(args["targetting_critic"].core)
-#     args["targetting_critic"].learning_rate_scheme.process_noise = args["process_noise"]
-#     args["targetting_critic"].learning_rate = 1. / n_steps
+#     args["targetting_critic_template"] = SwCritic(targetting_model)
+#     args["targetting_critic_template"].learning_rate_scheme = TrajKalmanLearningRateScheme(args["targetting_critic_template"].core)
+#     args["targetting_critic_template"].learning_rate_scheme.process_noise = args["process_noise"]
+#     args["targetting_critic_template"].learning_rate = 1. / n_steps
 
 #
 # def imsc(args):
 #     n_steps = args["n_steps"]
 #
 #     moving_model = moving_stepped_q_model(n_steps)
-#     args["moving_critic"] = SwSteppedCritic(moving_model)
-#     args["moving_critic"].learning_rate_scheme = SteppedKalmanLearningRateScheme(args["moving_critic"].core)
-#     args["moving_critic"].learning_rate_scheme.process_noise = args["process_noise"]
+#     args["moving_critic_template"] = SwSteppedCritic(moving_model)
+#     args["moving_critic_template"].learning_rate_scheme = SteppedKalmanLearningRateScheme(args["moving_critic_template"].core)
+#     args["moving_critic_template"].learning_rate_scheme.process_noise = args["process_noise"]
 #
 #     targetting_model = targetting_stepped_q_model(n_steps)
-#     args["targetting_critic"] = SwSteppedCritic(targetting_model)
-#     args["targetting_critic"].learning_rate_scheme = SteppedKalmanLearningRateScheme(args["targetting_critic"].core)
-#     args["targetting_critic"].learning_rate_scheme.process_noise = args["process_noise"]
+#     args["targetting_critic_template"] = SwSteppedCritic(targetting_model)
+#     args["targetting_critic_template"].learning_rate_scheme = SteppedKalmanLearningRateScheme(args["targetting_critic_template"].core)
+#     args["targetting_critic_template"].learning_rate_scheme.process_noise = args["process_noise"]
 
 def sw_e(args):
     n_steps = args["n_steps"]
 
-    args["moving_critic"] = SwEnsembleCritic(all_moving_keys, n_steps)
-    args["moving_critic"].process_noise = args["process_noise"]
+    args["moving_critic_template"] = SwEnsembleCritic(all_moving_keys, n_steps)
+    args["moving_critic_template"].process_noise = args["process_noise"]
 
-    args["targetting_critic"] = SwEnsembleCritic(all_target_keys, n_steps)
-    args["targetting_critic"].process_noise = args["process_noise"]
+    args["targetting_critic_template"] = SwEnsembleCritic(all_target_keys, n_steps)
+    args["targetting_critic_template"].process_noise = args["process_noise"]
 
 def q(args):
     n_steps = args["n_steps"]
 
-    args["moving_critic"] = QCritic(all_moving_keys)
-    args["moving_critic"].learning_rate_scheme = TrajKalmanLearningRateScheme(args["moving_critic"].core)
-    args["moving_critic"].learning_rate_scheme.process_noise = args["process_noise"]
-    args["moving_critic"].trace_sustain = 1.
+    args["moving_critic_template"] = QCritic(all_moving_keys)
+    args["moving_critic_template"].learning_rate_scheme = TrajKalmanLearningRateScheme(args["moving_critic_template"].core)
+    args["moving_critic_template"].learning_rate_scheme.process_noise = args["process_noise"]
+    args["moving_critic_template"].trace_sustain = 1.
 
 
-    args["targetting_critic"] = QCritic(all_target_keys)
-    args["targetting_critic"].learning_rate_scheme = TrajKalmanLearningRateScheme(args["targetting_critic"].core)
-    args["targetting_critic"].learning_rate_scheme.process_noise = args["process_noise"]
-    args["targetting_critic"].trace_sustain = 1.
+    args["targetting_critic_template"] = QCritic(all_target_keys)
+    args["targetting_critic_template"].learning_rate_scheme = TrajKalmanLearningRateScheme(args["targetting_critic_template"].core)
+    args["targetting_critic_template"].learning_rate_scheme.process_noise = args["process_noise"]
+    args["targetting_critic_template"].trace_sustain = 1.
 
 def q_et(a, b):
     def q_et_inner(args):
@@ -181,25 +181,25 @@ def q_et(a, b):
 #     n_steps = args["n_steps"]
 #
 #     moving_model = moving_stepped_q_model(n_steps)
-#     args["moving_critic"] = QSteppedCritic(moving_model)
-#     args["moving_critic"].learning_rate_scheme = SteppedKalmanLearningRateScheme(args["moving_critic"].core)
-#     args["moving_critic"].learning_rate_scheme.process_noise = args["process_noise"]
+#     args["moving_critic_template"] = QSteppedCritic(moving_model)
+#     args["moving_critic_template"].learning_rate_scheme = SteppedKalmanLearningRateScheme(args["moving_critic_template"].core)
+#     args["moving_critic_template"].learning_rate_scheme.process_noise = args["process_noise"]
 #
 #     targetting_model = targetting_stepped_q_model(n_steps)
-#     args["targetting_critic"] = QSteppedCritic(targetting_model)
-#     args["targetting_critic"].learning_rate_scheme = SteppedKalmanLearningRateScheme(args["targetting_critic"].core)
-#     args["targetting_critic"].learning_rate_scheme.process_noise = args["process_noise"]
+#     args["targetting_critic_template"] = QSteppedCritic(targetting_model)
+#     args["targetting_critic_template"].learning_rate_scheme = SteppedKalmanLearningRateScheme(args["targetting_critic_template"].core)
+#     args["targetting_critic_template"].learning_rate_scheme.process_noise = args["process_noise"]
 
 def q_e(args):
     n_steps = args["n_steps"]
 
-    args["moving_critic"] = QEnsembleCritic(all_moving_keys, n_steps)
-    args["moving_critic"].process_noise = args["process_noise"]
-    args["moving_critic"].trace_sustain = 1.
+    args["moving_critic_template"] = QEnsembleCritic(all_moving_keys, n_steps)
+    args["moving_critic_template"].process_noise = args["process_noise"]
+    args["moving_critic_template"].trace_sustain = 1.
 
-    args["targetting_critic"] = QEnsembleCritic(all_target_keys, n_steps)
-    args["targetting_critic"].process_noise = args["process_noise"]
-    args["targetting_critic"].trace_sustain = 1.
+    args["targetting_critic_template"] = QEnsembleCritic(all_target_keys, n_steps)
+    args["targetting_critic_template"].process_noise = args["process_noise"]
+    args["targetting_critic_template"].trace_sustain = 1.
 
 def q_e_et(a, b):
     def q_e_et_inner(args):
@@ -216,11 +216,11 @@ def q_e_et(a, b):
 #     def q_e_et_inner(args):
 #         q_e(args)
 #         if trace_sustain == float("inf"):
-#             args["moving_critic"].trace_sustain = 1.
-#             args["targetting_critic"].trace_sustain = 1.
+#             args["moving_critic_template"].trace_sustain = 1.
+#             args["targetting_critic_template"].trace_sustain = 1.
 #         else:
-#             args["moving_critic"].trace_sustain = trace_sustain
-#             args["targetting_critic"].trace_sustain = trace_sustain
+#             args["moving_critic_template"].trace_sustain = trace_sustain
+#             args["targetting_critic_template"].trace_sustain = trace_sustain
 #
 #     q_e_et_inner.__name__ = f"q_e_{trace_horizon:.0f}"
 #     return q_e_et_inner
@@ -232,11 +232,11 @@ def q_e_et(a, b):
 #     def qsc_et_inner(args):
 #         qsc(args)
 #         if trace_sustain == float("inf"):
-#             args["moving_critic"].trace_sustain = 1.
-#             args["targetting_critic"].trace_sustain = 1.
+#             args["moving_critic_template"].trace_sustain = 1.
+#             args["targetting_critic_template"].trace_sustain = 1.
 #         else:
-#             args["moving_critic"].trace_sustain = trace_sustain
-#             args["targetting_critic"].trace_sustain = trace_sustain
+#             args["moving_critic_template"].trace_sustain = trace_sustain
+#             args["targetting_critic_template"].trace_sustain = trace_sustain
 #
 #     qsc_et_inner.__name__ = f"qsc_{trace_horizon:.0f}"
 #     return qsc_et_inner
@@ -244,23 +244,23 @@ def q_e_et(a, b):
 # def biq(args):
 #     n_steps = args["n_steps"]
 #     moving_model = moving_traj_q_model(n_steps)
-#     args["moving_critic"] = BiQCritic(moving_model)
-#     args["moving_critic"].learning_rate_scheme = TrajKalmanLearningRateScheme(args["moving_critic"].core)
-#     args["moving_critic"].learning_rate_scheme.process_noise = args["process_noise"]
+#     args["moving_critic_template"] = BiQCritic(moving_model)
+#     args["moving_critic_template"].learning_rate_scheme = TrajKalmanLearningRateScheme(args["moving_critic_template"].core)
+#     args["moving_critic_template"].learning_rate_scheme.process_noise = args["process_noise"]
 #
 # def biqsc(args):
 #     n_steps = args["n_steps"]
 #     moving_model = moving_stepped_q_model(n_steps)
-#     args["moving_critic"] = BiQSteppedCritic(moving_model)
-#     args["moving_critic"].learning_rate_scheme = SteppedKalmanLearningRateScheme(args["moving_critic"].core)
-#     args["moving_critic"].learning_rate_scheme.process_noise = args["process_noise"]
+#     args["moving_critic_template"] = BiQSteppedCritic(moving_model)
+#     args["moving_critic_template"].learning_rate_scheme = SteppedKalmanLearningRateScheme(args["moving_critic_template"].core)
+#     args["moving_critic_template"].learning_rate_scheme.process_noise = args["process_noise"]
 #
 # def biq_e(args):
 #     n_steps = args["n_steps"]
 #     moving_model = moving_stepped_q_model(n_steps)
-#     args["moving_critic"] = BiQSteppedCritic(moving_model)
-#     args["moving_critic"].learning_rate_scheme = SteppedKalmanLearningRateScheme(args["moving_critic"].core)
-#     args["moving_critic"].learning_rate_scheme.process_noise = args["process_noise"]
+#     args["moving_critic_template"] = BiQSteppedCritic(moving_model)
+#     args["moving_critic_template"].learning_rate_scheme = SteppedKalmanLearningRateScheme(args["moving_critic_template"].core)
+#     args["moving_critic_template"].learning_rate_scheme.process_noise = args["process_noise"]
 
 def bi(args):
     n_steps = args["n_steps"]
@@ -268,20 +268,20 @@ def bi(args):
 
 
 
-    args["moving_critic"] = BiCritic(all_moving_keys, all_observation_keys)
-    args["moving_critic"].u_critic.learning_rate_scheme = TrajKalmanLearningRateScheme(args["moving_critic"].u_critic.core, True)
-    args["moving_critic"].q_critic.learning_rate_scheme = TrajKalmanLearningRateScheme(args["moving_critic"].q_critic.core)
-    args["moving_critic"].u_critic.learning_rate_scheme.process_noise = args["process_noise"]
-    args["moving_critic"].q_critic.learning_rate_scheme.process_noise = args["process_noise"]
-    args["moving_critic"].trace_sustain = 1.
+    args["moving_critic_template"] = BiCritic(all_moving_keys, all_observation_keys)
+    args["moving_critic_template"].u_critic.learning_rate_scheme = TrajKalmanLearningRateScheme(args["moving_critic_template"].u_critic.core, True)
+    args["moving_critic_template"].q_critic.learning_rate_scheme = TrajKalmanLearningRateScheme(args["moving_critic_template"].q_critic.core)
+    args["moving_critic_template"].u_critic.learning_rate_scheme.process_noise = args["process_noise"]
+    args["moving_critic_template"].q_critic.learning_rate_scheme.process_noise = args["process_noise"]
+    args["moving_critic_template"].trace_sustain = 1.
 
 
-    args["targetting_critic"] = BiCritic(all_target_keys, all_observation_keys)
-    args["targetting_critic"].u_critic.learning_rate_scheme = TrajKalmanLearningRateScheme(args["targetting_critic"].u_critic.core, True)
-    args["targetting_critic"].q_critic.learning_rate_scheme = TrajKalmanLearningRateScheme(args["targetting_critic"].q_critic.core)
-    args["targetting_critic"].u_critic.learning_rate_scheme.process_noise = args["process_noise"]
-    args["targetting_critic"].q_critic.learning_rate_scheme.process_noise = args["process_noise"]
-    args["targetting_critic"].trace_sustain = 1.
+    args["targetting_critic_template"] = BiCritic(all_target_keys, all_observation_keys)
+    args["targetting_critic_template"].u_critic.learning_rate_scheme = TrajKalmanLearningRateScheme(args["targetting_critic_template"].u_critic.core, True)
+    args["targetting_critic_template"].q_critic.learning_rate_scheme = TrajKalmanLearningRateScheme(args["targetting_critic_template"].q_critic.core)
+    args["targetting_critic_template"].u_critic.learning_rate_scheme.process_noise = args["process_noise"]
+    args["targetting_critic_template"].q_critic.learning_rate_scheme.process_noise = args["process_noise"]
+    args["targetting_critic_template"].trace_sustain = 1.
 
 
 def bi_et(a, b):
@@ -298,32 +298,32 @@ def bi_et(a, b):
 #
 #     q_moving_model = moving_stepped_q_model(n_steps)
 #     u_moving_model = stepped_v_model(n_steps)
-#     args["moving_critic"] = BiSteppedCritic(q_moving_model, u_moving_model)
-#     args["moving_critic"].u_critic.learning_rate_scheme = SteppedKalmanLearningRateScheme(args["moving_critic"].u_critic.core, True)
-#     args["moving_critic"].q_critic.learning_rate_scheme = SteppedKalmanLearningRateScheme(args["moving_critic"].q_critic.core)
-#     args["moving_critic"].u_critic.learning_rate_scheme.process_noise = args["process_noise"]
-#     args["moving_critic"].q_critic.learning_rate_scheme.process_noise = args["process_noise"]
+#     args["moving_critic_template"] = BiSteppedCritic(q_moving_model, u_moving_model)
+#     args["moving_critic_template"].u_critic.learning_rate_scheme = SteppedKalmanLearningRateScheme(args["moving_critic_template"].u_critic.core, True)
+#     args["moving_critic_template"].q_critic.learning_rate_scheme = SteppedKalmanLearningRateScheme(args["moving_critic_template"].q_critic.core)
+#     args["moving_critic_template"].u_critic.learning_rate_scheme.process_noise = args["process_noise"]
+#     args["moving_critic_template"].q_critic.learning_rate_scheme.process_noise = args["process_noise"]
 #
 #     q_targetting_model = targetting_stepped_q_model(n_steps)
 #     u_targetting_model = stepped_v_model(n_steps)
-#     args["targetting_critic"] = BiSteppedCritic(q_targetting_model, u_targetting_model)
-#     args["targetting_critic"].u_critic.learning_rate_scheme = SteppedKalmanLearningRateScheme(args["targetting_critic"].u_critic.core, True)
-#     args["targetting_critic"].q_critic.learning_rate_scheme = SteppedKalmanLearningRateScheme(args["targetting_critic"].q_critic.core)
-#     args["targetting_critic"].u_critic.learning_rate_scheme.process_noise = args["process_noise"]
-#     args["targetting_critic"].q_critic.learning_rate_scheme.process_noise = args["process_noise"]
+#     args["targetting_critic_template"] = BiSteppedCritic(q_targetting_model, u_targetting_model)
+#     args["targetting_critic_template"].u_critic.learning_rate_scheme = SteppedKalmanLearningRateScheme(args["targetting_critic_template"].u_critic.core, True)
+#     args["targetting_critic_template"].q_critic.learning_rate_scheme = SteppedKalmanLearningRateScheme(args["targetting_critic_template"].q_critic.core)
+#     args["targetting_critic_template"].u_critic.learning_rate_scheme.process_noise = args["process_noise"]
+#     args["targetting_critic_template"].q_critic.learning_rate_scheme.process_noise = args["process_noise"]
 
 def bi_e(args):
     n_steps = args["n_steps"]
 
-    args["moving_critic"] = BiEnsembleCritic(all_moving_keys, all_observation_keys, n_steps)
-    args["moving_critic"].u_critic.process_noise = args["process_noise"]
-    args["moving_critic"].q_critic.process_noise = args["process_noise"]
-    args["moving_critic"].trace_sustain = 1.
+    args["moving_critic_template"] = BiEnsembleCritic(all_moving_keys, all_observation_keys, n_steps)
+    args["moving_critic_template"].u_critic.process_noise = args["process_noise"]
+    args["moving_critic_template"].q_critic.process_noise = args["process_noise"]
+    args["moving_critic_template"].trace_sustain = 1.
 
-    args["targetting_critic"] = BiEnsembleCritic(all_target_keys, all_observation_keys, n_steps)
-    args["targetting_critic"].u_critic.process_noise = args["process_noise"]
-    args["targetting_critic"].q_critic.process_noise = args["process_noise"]
-    args["targetting_critic"].trace_sustain = 1.
+    args["targetting_critic_template"] = BiEnsembleCritic(all_target_keys, all_observation_keys, n_steps)
+    args["targetting_critic_template"].u_critic.process_noise = args["process_noise"]
+    args["targetting_critic_template"].q_critic.process_noise = args["process_noise"]
+    args["targetting_critic_template"].trace_sustain = 1.
 
 def bi_e_et(a, b):
     def bi_e_et_inner(args):
@@ -337,18 +337,18 @@ def bi_ce(args):
     n_steps = args["n_steps"]
 
 
-    args["moving_critic"] = BiCombinedEnsembleCritic(all_moving_keys, all_observation_keys, n_steps)
-    args["moving_critic"].u_critic.process_noise = args["process_noise"]
-    args["moving_critic"].q_critic.process_noise = args["process_noise"]
-    args["moving_critic"].core.process_noise = args["process_noise"]
-    args["moving_critic"].trace_sustain = 1.
+    args["moving_critic_template"] = BiCombinedEnsembleCritic(all_moving_keys, all_observation_keys, n_steps)
+    args["moving_critic_template"].u_critic.process_noise = args["process_noise"]
+    args["moving_critic_template"].q_critic.process_noise = args["process_noise"]
+    args["moving_critic_template"].core.process_noise = args["process_noise"]
+    args["moving_critic_template"].trace_sustain = 1.
 
 
-    args["targetting_critic"] = BiCombinedEnsembleCritic(all_target_keys, all_observation_keys, n_steps)
-    args["targetting_critic"].u_critic.process_noise = args["process_noise"]
-    args["targetting_critic"].q_critic.process_noise = args["process_noise"]
-    args["targetting_critic"].core.process_noise = args["process_noise"]
-    args["targetting_critic"].trace_sustain = 1.
+    args["targetting_critic_template"] = BiCombinedEnsembleCritic(all_target_keys, all_observation_keys, n_steps)
+    args["targetting_critic_template"].u_critic.process_noise = args["process_noise"]
+    args["targetting_critic_template"].q_critic.process_noise = args["process_noise"]
+    args["targetting_critic_template"].core.process_noise = args["process_noise"]
+    args["targetting_critic_template"].trace_sustain = 1.
 
 
 def bi_ce_et(a, b):
@@ -369,17 +369,17 @@ def bi_ce_et(a, b):
 #     def bi_e_et_inner(args):
 #         bi_e(args)
 #         if trace_sustain == float("inf"):
-#             args["moving_critic"].u_critic.trace_sustain = 1.
-#             args["moving_critic"].q_critic.trace_sustain = 1.
+#             args["moving_critic_template"].u_critic.trace_sustain = 1.
+#             args["moving_critic_template"].q_critic.trace_sustain = 1.
 #
-#             args["targetting_critic"].u_critic.trace_sustain = 1.
-#             args["targetting_critic"].q_critic.trace_sustain = 1.
+#             args["targetting_critic_template"].u_critic.trace_sustain = 1.
+#             args["targetting_critic_template"].q_critic.trace_sustain = 1.
 #         else:
-#             args["moving_critic"].u_critic.trace_sustain = trace_sustain
-#             args["moving_critic"].q_critic.trace_sustain = trace_sustain
+#             args["moving_critic_template"].u_critic.trace_sustain = trace_sustain
+#             args["moving_critic_template"].q_critic.trace_sustain = trace_sustain
 #
-#             args["targetting_critic"].u_critic.trace_sustain = trace_sustain
-#             args["targetting_critic"].q_critic.trace_sustain = trace_sustain
+#             args["targetting_critic_template"].u_critic.trace_sustain = trace_sustain
+#             args["targetting_critic_template"].q_critic.trace_sustain = trace_sustain
 #
 #     bi_e_et_inner.__name__ = f"bi_e_{trace_horizon:.0f}"
 #     return bi_e_et_inner
@@ -392,11 +392,11 @@ def bi_ce_et(a, b):
 #
 #     trace_schedule = [trace_sustain_50] * 2000 + [trace_sustain_25] * 1000
 #
-#     args["moving_critic"].u_critic.trace_sustain = trace_sustain_50
-#     args["moving_critic"].q_critic.trace_sustain = trace_sustain_50
+#     args["moving_critic_template"].u_critic.trace_sustain = trace_sustain_50
+#     args["moving_critic_template"].q_critic.trace_sustain = trace_sustain_50
 #
-#     args["targetting_critic"].u_critic.trace_sustain = trace_sustain_50
-#     args["targetting_critic"].q_critic.trace_sustain = trace_sustain_50
+#     args["targetting_critic_template"].u_critic.trace_sustain = trace_sustain_50
+#     args["targetting_critic_template"].q_critic.trace_sustain = trace_sustain_50
 #
 #     args["trace_schedule"] = trace_schedule
 #
@@ -409,11 +409,11 @@ def bi_ce_et(a, b):
 #
 #     trace_schedule = [(trace_horizon - 1.) / (trace_horizon) for trace_horizon in trace_horizons]
 #
-#     args["moving_critic"].u_critic.trace_sustain = trace_schedule[0]
-#     args["moving_critic"].q_critic.trace_sustain = trace_schedule[0]
+#     args["moving_critic_template"].u_critic.trace_sustain = trace_schedule[0]
+#     args["moving_critic_template"].q_critic.trace_sustain = trace_schedule[0]
 #
-#     args["targetting_critic"].u_critic.trace_sustain = trace_schedule[0]
-#     args["targetting_critic"].q_critic.trace_sustain = trace_schedule[0]
+#     args["targetting_critic_template"].u_critic.trace_sustain = trace_schedule[0]
+#     args["targetting_critic_template"].q_critic.trace_sustain = trace_schedule[0]
 #
 #     args["trace_schedule"] = trace_schedule
 #
@@ -426,11 +426,11 @@ def bi_ce_et(a, b):
 #
 #     trace_schedule = [(trace_horizon - 1.) / (trace_horizon) for trace_horizon in trace_horizons]
 #
-#     args["moving_critic"].u_critic.trace_sustain = trace_schedule[0]
-#     args["moving_critic"].q_critic.trace_sustain = trace_schedule[0]
+#     args["moving_critic_template"].u_critic.trace_sustain = trace_schedule[0]
+#     args["moving_critic_template"].q_critic.trace_sustain = trace_schedule[0]
 #
-#     args["targetting_critic"].u_critic.trace_sustain = trace_schedule[0]
-#     args["targetting_critic"].q_critic.trace_sustain = trace_schedule[0]
+#     args["targetting_critic_template"].u_critic.trace_sustain = trace_schedule[0]
+#     args["targetting_critic_template"].q_critic.trace_sustain = trace_schedule[0]
 #
 #     args["trace_schedule"] = trace_schedule
 
@@ -449,17 +449,17 @@ def bi_ce_et(a, b):
 #     def bisc_et_inner(args):
 #         bisc(args)
 #         if trace_sustain == float("inf"):
-#             args["moving_critic"].u_critic.trace_sustain = 1.
-#             args["moving_critic"].q_critic.trace_sustain = 1.
+#             args["moving_critic_template"].u_critic.trace_sustain = 1.
+#             args["moving_critic_template"].q_critic.trace_sustain = 1.
 #
-#             args["targetting_critic"].u_critic.trace_sustain = 1.
-#             args["targetting_critic"].q_critic.trace_sustain = 1.
+#             args["targetting_critic_template"].u_critic.trace_sustain = 1.
+#             args["targetting_critic_template"].q_critic.trace_sustain = 1.
 #         else:
-#             args["moving_critic"].u_critic.trace_sustain = trace_sustain
-#             args["moving_critic"].q_critic.trace_sustain = trace_sustain
+#             args["moving_critic_template"].u_critic.trace_sustain = trace_sustain
+#             args["moving_critic_template"].q_critic.trace_sustain = trace_sustain
 #
-#             args["targetting_critic"].u_critic.trace_sustain = trace_sustain
-#             args["targetting_critic"].q_critic.trace_sustain = trace_sustain
+#             args["targetting_critic_template"].u_critic.trace_sustain = trace_sustain
+#             args["targetting_critic_template"].q_critic.trace_sustain = trace_sustain
 #
 #     bisc_et_inner.__name__ = f"bisc_{trace_horizon:.0f}"
 #     return bisc_et_inner
@@ -470,20 +470,20 @@ def bi_ce_et(a, b):
 def a(args):
     n_steps = args["n_steps"]
 
-    args["moving_critic"] = ACritic(all_moving_keys, all_observation_keys)
-    args["moving_critic"].v_critic.learning_rate_scheme = TrajKalmanLearningRateScheme(args["moving_critic"].v_critic.core, True)
-    args["moving_critic"].q_critic.learning_rate_scheme = TrajKalmanLearningRateScheme(args["moving_critic"].q_critic.core)
-    args["moving_critic"].v_critic.learning_rate_scheme.process_noise = args["process_noise"]
-    args["moving_critic"].q_critic.learning_rate_scheme.process_noise = args["process_noise"]
-    args["moving_critic"].trace_sustain = 1.
+    args["moving_critic_template"] = ACritic(all_moving_keys, all_observation_keys)
+    args["moving_critic_template"].v_critic.learning_rate_scheme = TrajKalmanLearningRateScheme(args["moving_critic_template"].v_critic.core, True)
+    args["moving_critic_template"].q_critic.learning_rate_scheme = TrajKalmanLearningRateScheme(args["moving_critic_template"].q_critic.core)
+    args["moving_critic_template"].v_critic.learning_rate_scheme.process_noise = args["process_noise"]
+    args["moving_critic_template"].q_critic.learning_rate_scheme.process_noise = args["process_noise"]
+    args["moving_critic_template"].trace_sustain = 1.
 
 
-    args["targetting_critic"] = ACritic(all_target_keys, all_observation_keys)
-    args["targetting_critic"].v_critic.learning_rate_scheme = TrajKalmanLearningRateScheme(args["targetting_critic"].v_critic.core, True)
-    args["targetting_critic"].q_critic.learning_rate_scheme = TrajKalmanLearningRateScheme(args["targetting_critic"].q_critic.core)
-    args["targetting_critic"].v_critic.learning_rate_scheme.process_noise = args["process_noise"]
-    args["targetting_critic"].q_critic.learning_rate_scheme.process_noise = args["process_noise"]
-    args["targetting_critic"].trace_sustain = 1.
+    args["targetting_critic_template"] = ACritic(all_target_keys, all_observation_keys)
+    args["targetting_critic_template"].v_critic.learning_rate_scheme = TrajKalmanLearningRateScheme(args["targetting_critic_template"].v_critic.core, True)
+    args["targetting_critic_template"].q_critic.learning_rate_scheme = TrajKalmanLearningRateScheme(args["targetting_critic_template"].q_critic.core)
+    args["targetting_critic_template"].v_critic.learning_rate_scheme.process_noise = args["process_noise"]
+    args["targetting_critic_template"].q_critic.learning_rate_scheme.process_noise = args["process_noise"]
+    args["targetting_critic_template"].trace_sustain = 1.
 
 def a_et(a, b):
     def a_et_inner(args):
@@ -499,33 +499,33 @@ def a_et(a, b):
 #
 #     q_moving_model = moving_stepped_q_model(n_steps)
 #     v_moving_model = stepped_v_model(n_steps)
-#     args["moving_critic"] = ASteppedCritic(q_moving_model, v_moving_model)
-#     args["moving_critic"].v_critic.learning_rate_scheme = SteppedKalmanLearningRateScheme(args["moving_critic"].v_critic.core, True)
-#     args["moving_critic"].q_critic.learning_rate_scheme = SteppedKalmanLearningRateScheme(args["moving_critic"].q_critic.core)
-#     args["moving_critic"].v_critic.learning_rate_scheme.process_noise = args["process_noise"]
-#     args["moving_critic"].q_critic.learning_rate_scheme.process_noise = args["process_noise"]
+#     args["moving_critic_template"] = ASteppedCritic(q_moving_model, v_moving_model)
+#     args["moving_critic_template"].v_critic.learning_rate_scheme = SteppedKalmanLearningRateScheme(args["moving_critic_template"].v_critic.core, True)
+#     args["moving_critic_template"].q_critic.learning_rate_scheme = SteppedKalmanLearningRateScheme(args["moving_critic_template"].q_critic.core)
+#     args["moving_critic_template"].v_critic.learning_rate_scheme.process_noise = args["process_noise"]
+#     args["moving_critic_template"].q_critic.learning_rate_scheme.process_noise = args["process_noise"]
 #
 #
 #     q_targetting_model = targetting_stepped_q_model(n_steps)
 #     v_targetting_model = stepped_v_model(n_steps)
-#     args["targetting_critic"] = ASteppedCritic(q_targetting_model, v_targetting_model)
-#     args["targetting_critic"].v_critic.learning_rate_scheme = SteppedKalmanLearningRateScheme(args["targetting_critic"].v_critic.core, True)
-#     args["targetting_critic"].q_critic.learning_rate_scheme = SteppedKalmanLearningRateScheme(args["targetting_critic"].q_critic.core)
-#     args["targetting_critic"].v_critic.learning_rate_scheme.process_noise = args["process_noise"]
-#     args["targetting_critic"].q_critic.learning_rate_scheme.process_noise = args["process_noise"]
+#     args["targetting_critic_template"] = ASteppedCritic(q_targetting_model, v_targetting_model)
+#     args["targetting_critic_template"].v_critic.learning_rate_scheme = SteppedKalmanLearningRateScheme(args["targetting_critic_template"].v_critic.core, True)
+#     args["targetting_critic_template"].q_critic.learning_rate_scheme = SteppedKalmanLearningRateScheme(args["targetting_critic_template"].q_critic.core)
+#     args["targetting_critic_template"].v_critic.learning_rate_scheme.process_noise = args["process_noise"]
+#     args["targetting_critic_template"].q_critic.learning_rate_scheme.process_noise = args["process_noise"]
 
 def a_e(args):
     n_steps = args["n_steps"]
 
-    args["moving_critic"] = AEnsembleCritic(all_moving_keys, all_observation_keys, n_steps)
-    args["moving_critic"].v_critic.process_noise = args["process_noise"]
-    args["moving_critic"].q_critic.process_noise = args["process_noise"]
-    args["moving_critic"].trace_sustain = 1.
+    args["moving_critic_template"] = AEnsembleCritic(all_moving_keys, all_observation_keys, n_steps)
+    args["moving_critic_template"].v_critic.process_noise = args["process_noise"]
+    args["moving_critic_template"].q_critic.process_noise = args["process_noise"]
+    args["moving_critic_template"].trace_sustain = 1.
 
-    args["targetting_critic"] = AEnsembleCritic(all_target_keys, all_observation_keys, n_steps)
-    args["targetting_critic"].v_critic.process_noise = args["process_noise"]
-    args["targetting_critic"].q_critic.process_noise = args["process_noise"]
-    args["targetting_critic"].trace_sustain = 1.
+    args["targetting_critic_template"] = AEnsembleCritic(all_target_keys, all_observation_keys, n_steps)
+    args["targetting_critic_template"].v_critic.process_noise = args["process_noise"]
+    args["targetting_critic_template"].q_critic.process_noise = args["process_noise"]
+    args["targetting_critic_template"].trace_sustain = 1.
 
 
 def a_e_et(a, b):
@@ -540,17 +540,17 @@ def a_ce(args):
     n_steps = args["n_steps"]
 
 
-    args["moving_critic"] = ACombinedEnsembleCritic(all_moving_keys, all_observation_keys, n_steps)
-    args["moving_critic"].v_critic.process_noise = args["process_noise"]
-    args["moving_critic"].q_critic.process_noise = args["process_noise"]
-    args["moving_critic"].core.process_noise = args["process_noise"]
-    args["moving_critic"].trace_sustain = 1.
+    args["moving_critic_template"] = ACombinedEnsembleCritic(all_moving_keys, all_observation_keys, n_steps)
+    args["moving_critic_template"].v_critic.process_noise = args["process_noise"]
+    args["moving_critic_template"].q_critic.process_noise = args["process_noise"]
+    args["moving_critic_template"].core.process_noise = args["process_noise"]
+    args["moving_critic_template"].trace_sustain = 1.
 
-    args["targetting_critic"] = ACombinedEnsembleCritic(all_target_keys, all_observation_keys, n_steps)
-    args["targetting_critic"].v_critic.process_noise = args["process_noise"]
-    args["targetting_critic"].q_critic.process_noise = args["process_noise"]
-    args["targetting_critic"].core.process_noise = args["process_noise"]
-    args["targetting_critic"].trace_sustain = 1.
+    args["targetting_critic_template"] = ACombinedEnsembleCritic(all_target_keys, all_observation_keys, n_steps)
+    args["targetting_critic_template"].v_critic.process_noise = args["process_noise"]
+    args["targetting_critic_template"].q_critic.process_noise = args["process_noise"]
+    args["targetting_critic_template"].core.process_noise = args["process_noise"]
+    args["targetting_critic_template"].trace_sustain = 1.
 
 
 def a_ce_et(a, b):
@@ -568,17 +568,17 @@ def a_ce_et(a, b):
 #     def a_e_et_inner(args):
 #         a_e(args)
 #         if trace_sustain == float("inf"):
-#             args["moving_critic"].v_critic.trace_sustain = 1.
-#             args["moving_critic"].q_critic.trace_sustain = 1.
+#             args["moving_critic_template"].v_critic.trace_sustain = 1.
+#             args["moving_critic_template"].q_critic.trace_sustain = 1.
 #
-#             args["targetting_critic"].v_critic.trace_sustain = 1.
-#             args["targetting_critic"].q_critic.trace_sustain = 1.
+#             args["targetting_critic_template"].v_critic.trace_sustain = 1.
+#             args["targetting_critic_template"].q_critic.trace_sustain = 1.
 #         else:
-#             args["moving_critic"].v_critic.trace_sustain = trace_sustain
-#             args["moving_critic"].q_critic.trace_sustain = trace_sustain
+#             args["moving_critic_template"].v_critic.trace_sustain = trace_sustain
+#             args["moving_critic_template"].q_critic.trace_sustain = trace_sustain
 #
-#             args["targetting_critic"].v_critic.trace_sustain = trace_sustain
-#             args["targetting_critic"].q_critic.trace_sustain = trace_sustain
+#             args["targetting_critic_template"].v_critic.trace_sustain = trace_sustain
+#             args["targetting_critic_template"].q_critic.trace_sustain = trace_sustain
 #
 #     a_e_et_inner.__name__ = f"a_e_{trace_horizon:.0f}"
 #     return a_e_et_inner
@@ -590,17 +590,17 @@ def a_ce_et(a, b):
 #     def asc_et_inner(args):
 #         asc(args)
 #         if trace_sustain == float("inf"):
-#             args["moving_critic"].v_critic.trace_sustain = 1.
-#             args["moving_critic"].q_critic.trace_sustain = 1.
+#             args["moving_critic_template"].v_critic.trace_sustain = 1.
+#             args["moving_critic_template"].q_critic.trace_sustain = 1.
 #
-#             args["targetting_critic"].v_critic.trace_sustain = 1.
-#             args["targetting_critic"].q_critic.trace_sustain = 1.
+#             args["targetting_critic_template"].v_critic.trace_sustain = 1.
+#             args["targetting_critic_template"].q_critic.trace_sustain = 1.
 #         else:
-#             args["moving_critic"].v_critic.trace_sustain = trace_sustain
-#             args["moving_critic"].q_critic.trace_sustain = trace_sustain
+#             args["moving_critic_template"].v_critic.trace_sustain = trace_sustain
+#             args["moving_critic_template"].q_critic.trace_sustain = trace_sustain
 #
-#             args["targetting_critic"].v_critic.trace_sustain = trace_sustain
-#             args["targetting_critic"].q_critic.trace_sustain = trace_sustain
+#             args["targetting_critic_template"].v_critic.trace_sustain = trace_sustain
+#             args["targetting_critic_template"].q_critic.trace_sustain = trace_sustain
 #
 #     asc_et_inner.__name__ = f"asc_{trace_horizon:.0f}"
 #     return asc_et_inner

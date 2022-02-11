@@ -1,24 +1,24 @@
 # cython: profile=False
 
-import numpy as np
-from random import shuffle
-import os
-import errno
-import datetime
-import itertools
-import glob
-import datetime as dt
-from shutil import copy
-import csv
-import time
+# import numpy as np
+# from random import shuffle
+# import os
+# import errno
+# import datetime
+# import itertools
+# import glob
+# import datetime as dt
+# from shutil import copy
+# import csv
+# import time
 
-import random
+# import random
 from numpy.random import default_rng
 cimport cython
 rng = default_rng()
-from min_entropy_dist import min_entropy_dist_exp_cg, min_entropy_dist_cg
+# from min_entropy_dist import min_entropy_dist_exp_cg, min_entropy_dist_cg
 from enum import IntEnum
-from typing import Tuple
+from typing import Tuple, Protocol
 
 cdef class Pos:
     cdef public int row
@@ -67,7 +67,7 @@ cdef double[::1] np_random_uniform_cache = rng.random(random_cache_size)
 @cython.wraparound(False)   # Deactivate negative indexing.
 @cython.initializedcheck(False)   # Deactivate initialized check
 @cython.nonecheck(False)   # Deactivate negative indexing.
-cpdef double random_uniform():
+cpdef double random_uniform() except *:
     global random_uniform_counter, np_random_uniform_cache, random_cache_size
 
     if random_uniform_counter >= random_cache_size:
@@ -195,7 +195,7 @@ cpdef list closest_robots(Robot robot, list prev_closest_robots, list robots):
 
     return new_closest_robots[:sort_n]
 
-cpdef tuple observation(Robot robot) -> Observation:
+cpdef tuple observation(Robot robot): # -> Observation
     global all_quandrants
     cdef Pos robot_pos = robot.pos
 
@@ -359,24 +359,14 @@ def target_cell_given_moving_action(cell, moving_action, n_rows, n_cols):
 
 
 
-def all_observations():
-    for target_type in all_target_types():
+def all_observations_gen():
+    for target_type in all_target_types:
         for quadrant in range(4):
             for distance_state in range(5):
                 yield (target_type, quadrant, distance_state)
 
-def all_moving_actions():
-    yield MovingAction.LEFT
-    yield MovingAction.RIGHT
-    yield MovingAction.UP
-    yield MovingAction.DOWN
-    yield MovingAction.STAY
+all_observations = list(all_observations_gen())
 
-def all_target_types():
-    yield TargetType.CLOSEST_GOAL
-    yield TargetType.CLOSEST_ROBOT_1ST
-    yield TargetType.CLOSEST_ROBOT_2ND
-    yield TargetType.CLOSEST_ROBOT_3RD
 
 def random_elem_from_list(l):
     r = random_uniform()
@@ -459,6 +449,25 @@ class GoalRecord:
         self.rows = [None for i in range(n_steps)]
         self.cols = [None for i in range(n_steps)]
 
+class MovingPolicy(Protocol):
+    def action(self, observation: Observation, possible_actions: List[MovingAction]) -> MovingAction:
+        ...
+
+class TargettingPolicy(Protocol):
+    def action(self, observation: Observation, possible_actions: List[TargetType]) -> TargetType:
+        ...
+
+class DomainRecord:
+    def __init__(self, domain):
+        self.n_steps = domain.n_steps
+        self.n_rows = domain.n_rows
+        self.n_cols = domain.n_cols
+        self.n_robots = domain.n_robots
+        self.n_req = domain.n_req
+        self.n_goals = domain.n_goals
+
+        self.goal_records = [GoalRecord(domain.n_steps) for i in range(domain.n_goals)]
+        self.robot_records = [RobotRecord(domain.n_steps) for i in range(domain.n_robots)]
 
 class Domain:
     def __init__(self, n_rows, n_cols, n_steps, n_robots, n_req, n_goals):
@@ -468,9 +477,15 @@ class Domain:
         self.n_robots = n_robots
         self.n_req = n_req
         self.n_goals = n_goals
+        self.goal_records = [GoalRecord(n_steps) for i in range(n_goals)],
+        self.robot_records = [RobotRecord(n_steps) for i in range(n_robots)]
 
 
-    def execute(self, moving_policies, targetting_policies):
+    def execute(
+        self,
+        moving_policies: Sequence[MovingPolicy],
+        targetting_policies: Sequence[TargettingPolicy],
+    ) -> Tuple[List[Trajectory], DomainRecord]:
         global all_target_types
         n_robots = self.n_robots
         n_goals = self.n_goals
@@ -487,18 +502,22 @@ class Domain:
         trajectories = [Trajectory(n_steps) for i in range(n_robots)]
         rewards = [0. for i in range(n_steps)]
 
-        records = {
-            "n_rows" : n_rows,
-            "n_cols" : n_cols,
-            "n_steps" : n_steps,
-            "n_robots" : n_robots,
-            "n_goals" : n_goals,
-            "goal_records" : [GoalRecord(n_steps) for i in range(n_goals)],
-            "robot_records" : [RobotRecord(n_steps) for i in range(n_robots)],
-        }
+        # records = {
+        #     "n_rows" : n_rows,
+        #     "n_cols" : n_cols,
+        #     "n_steps" : n_steps,
+        #     "n_robots" : n_robots,
+        #     "n_goals" : n_goals,
+        #     "goal_records" : [GoalRecord(n_steps) for i in range(n_goals)],
+        #     "robot_records" : [RobotRecord(n_steps) for i in range(n_robots)],
+        # }
+        #
+        # goal_records = records["goal_records"]
+        # robot_records = records["robot_records"]
 
-        goal_records = records["goal_records"]
-        robot_records = records["robot_records"]
+        domain_record = DomainRecord(self)
+        goal_records  = domain_record.goal_records
+        robot_records  = domain_record.robot_records
 
         for step_id in range(n_steps):
             for goal, goal_record in zip(goals, goal_records):
@@ -558,7 +577,7 @@ class Domain:
             trajectories[robot_id].rewards = rewards.copy()
 
 
-        return trajectories, records
+        return trajectories, domain_record
 
 #
 # def phenotypes_from_population(population):
