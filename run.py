@@ -1,6 +1,9 @@
 import pyximport; pyximport.install()
 from runner import Runner
-from mods import *
+from mods import (
+    a, a_ce, a_ce_et, a_e, a_e_et, a_et, bi, bi_ce, bi_ce_et, bi_e, bi_e_et,
+    bi_et, noc, q, q_e, q_e_et, q_et, sw, sw_e, tw
+)
 import itertools
 import random
 from multiprocessing import Process
@@ -12,7 +15,7 @@ import cProfile, pstats
 # (I know that it is in alpha as on now Feb 03 2022, but it is the more developed version)
 
 def run():
-    experiment_name = "test"
+    experiment_name = "F1"
     n_stats_run_per_process = 1
 
     # Codes
@@ -34,10 +37,10 @@ def run():
         # sw, # Step-Wise
         # q_et(1, 0.0001), # SARSA TD($\lambda$)
         # q_e_et(1, 0.0001), # SARSA Ensemble TD($\lambda$)
-        # bi_et(1, 0.0), # Bidirectional TD(1) Need Rerun
+        # bi_et(1, 0.0), # Bidirectional TD(1)
         # bi_ce_et(1, 0.0), # Bidirectional (Combined) Ensemble TD(1)
-        # bi_et(1, 0.0001), # Bidirectional TD($\lambda$) Needs rerun
-        # bi_ce_et(1, 0.0001), # Bidirectional (Combined) Ensemble TD($\lambda$) Need rerun(for comparison)
+        # bi_et(1, 0.0001), # Bidirectional TD($\lambda$)
+        # bi_ce_et(1, 0.0001), # Bidirectional (Combined) Ensemble TD($\lambda$)
         # bi_ce_et(0, 0.0001), # Bidirectional (Combined) Ensemble TD(0)
         # a_ce_et(0, 0.0001), # Advantage(Combined) Ensemble TD($\lambda$)
     )]

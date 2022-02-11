@@ -13,7 +13,13 @@
 
 from domain import all_observations, all_moving_actions, all_target_types
 
-from critic import *
+from critic import (
+    ACombinedEnsembleCritic, ACritic, AEnsembleCritic,
+    BiCombinedEnsembleCritic, BiCritic, BiEnsembleCritic,
+    MeanTrajKalmanLearningRateScheme, QCritic, QEnsembleCritic,
+    SteppedKalmanLearningRateScheme, SwCritic, SwEnsembleCritic,
+    TrajKalmanLearningRateScheme, TwCritic
+)
 
 def all_observation_moving_actions():
     for observation in all_observations:

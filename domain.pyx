@@ -1,4 +1,4 @@
-# cython: profile=False
+# cython: profile=True
 
 # import numpy as np
 # from random import shuffle
