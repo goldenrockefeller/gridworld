@@ -1,7 +1,8 @@
 import numpy as np
 from policy import Policy, array_from_action_probs, update_action_probs_with_array, ActiontoDistributionT, ObservationToDistributionT
-from cross_entropy_optimization import min_entropy_dist_exp_cg
+from dirichlet_cross_entropy_opt import min_divergence_dirichlet_exp_cg
 from typing import Sequence, List, TypeVar, Mapping, Protocol,MutableMapping, Generic, Hashable, Iterable
+
 
 ObservationT = TypeVar("ObservationT", bound = Hashable)
 ActionT = TypeVar("ActionT", bound = Hashable)
@@ -83,7 +84,7 @@ def update_dist(
             data[policy_id] = array_from_action_probs(action_multinomial_probs, all_actions)
 
         result = (
-            min_entropy_dist_exp_cg(
+            min_divergence_dirichlet_exp_cg(
                 array_from_action_probs(
                     dist[observation],
                     all_actions
@@ -92,4 +93,4 @@ def update_dist(
                 data
             )
         )
-        update_action_probs_with_array(dist[observation], np.exp(result.x), all_actions)
+        update_action_probs_with_array(dist[observation], result, all_actions)
