@@ -79,7 +79,7 @@ class Runner:
 
         domain = Domain(n_rows, n_cols, n_steps, n_robots, n_req, n_goals)
 
-        n_epochs = 3 # 6000
+        n_epochs = 6000
         n_policies = 50 # per agent policy population (i.e policy size)
 
         # Each policy for an agent is evaluated with their a separate team every generations.
