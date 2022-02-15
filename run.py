@@ -1,4 +1,6 @@
-import pyximport; pyximport.install()
+import os
+build_path = os.path.join(os.path.dirname(__file__), ".pyxbld")
+import pyximport; pyximport.install(build_dir=build_path)
 from runner import Runner
 from mods import (
     a, a_ce, a_ce_et, a_e, a_e_et, a_et, bi, bi_ce, bi_ce_et, bi_e, bi_e_et,
