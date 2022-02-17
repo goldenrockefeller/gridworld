@@ -33,18 +33,18 @@ def run():
 
 
     mods_to_mix = [(
-        # noc, # No critic,
-        # tw, # Trajectory-wise,
-        # sw_e, # Step-Wise Ensemble
-        # sw, # Step-Wise
-        # q_et(1, 0.0001), # SARSA TD($\lambda$)
-        # q_e_et(1, 0.0001), # SARSA Ensemble TD($\lambda$)
-        # bi_et(1, 0.0), # Bidirectional TD(1)
-        # bi_ce_et(1, 0.0), # Bidirectional (Combined) Ensemble TD(1)
-        # bi_et(1, 0.0001), # Bidirectional TD($\lambda$)
-        # bi_ce_et(1, 0.0001), # Bidirectional (Combined) Ensemble TD($\lambda$)
-        # bi_ce_et(0, 0.0001), # Bidirectional (Combined) Ensemble TD(0)
-        # a_ce_et(0, 0.0001), # Advantage(Combined) Ensemble TD($\lambda$)
+        noc, # No critic,
+        tw, # Trajectory-wise,
+        sw_e, # Step-Wise Ensemble
+        sw, # Step-Wise
+        q_et(1, 0.0001), # SARSA TD($\lambda$)
+        q_e_et(1, 0.0001), # SARSA Ensemble TD($\lambda$)
+        bi_et(1, 0.0), # Bidirectional TD(1)
+        bi_ce_et(1, 0.0), # Bidirectional (Combined) Ensemble TD(1)
+        bi_et(1, 0.0001), # Bidirectional TD($\lambda$)
+        bi_ce_et(1, 0.0001), # Bidirectional (Combined) Ensemble TD($\lambda$)
+        bi_ce_et(0, 0.0001), # Bidirectional (Combined) Ensemble TD(0)
+        a_ce_et(0, 0.0001), # Advantage(Combined) Ensemble TD($\lambda$)
     )]
 
     runners = [
@@ -61,31 +61,31 @@ def run():
 
 if __name__ == '__main__':
 
-    r = Runner('test', (bi_ce_et(1, 0.),))
-
-
-    profiler = cProfile.Profile()
-    profiler.enable()
-
-
-    r.new_run()
-
-    profiler.disable()
-    stats = pstats.Stats(profiler).sort_stats('cumtime')
-    stats.print_stats()
-
-    # n_processes = int(sys.argv[1])
-    # print(f"Number of processes: {n_processes}")
-    #
-    # if n_processes == 1:
-    #     run()
-    # else:
-    #     processes = [Process(target = run) for _ in range(n_processes)]
-    #
-    #     for process in processes:
-    #         process.start()
-    #         sleep(2)
+    # r = Runner('test', (bi_ce_et(1, 0.),))
     #
     #
-    #     for process in processes:
-    #         process.join()
+    # profiler = cProfile.Profile()
+    # profiler.enable()
+    #
+    #
+    # r.new_run()
+    #
+    # profiler.disable()
+    # stats = pstats.Stats(profiler).sort_stats('cumtime')
+    # stats.print_stats()
+
+    n_processes = int(sys.argv[1])
+    print(f"Number of processes: {n_processes}")
+
+    if n_processes == 1:
+        run()
+    else:
+        processes = [Process(target = run) for _ in range(n_processes)]
+
+        for process in processes:
+            process.start()
+            sleep(2)
+
+
+        for process in processes:
+            process.join()
