@@ -1,6 +1,7 @@
 import os
-build_path = os.path.join(os.path.dirname(__file__), ".pyxbld")
-import pyximport; pyximport.install(build_dir=build_path)
+
+import patched_pyximport; patched_pyximport.install(__file__)
+
 from runner import Runner
 from mods import (
     a, a_ce, a_ce_et, a_e, a_e_et, a_et, bi, bi_ce, bi_ce_et, bi_e, bi_e_et,
@@ -61,31 +62,31 @@ def run():
 
 if __name__ == '__main__':
 
-    # r = Runner('test', (bi_ce_et(1, 0.),))
-    #
-    #
-    # profiler = cProfile.Profile()
-    # profiler.enable()
-    #
-    #
-    # r.new_run()
-    #
-    # profiler.disable()
-    # stats = pstats.Stats(profiler).sort_stats('cumtime')
-    # stats.print_stats()
-
-    n_processes = int(sys.argv[1])
-    print(f"Number of processes: {n_processes}")
-
-    if n_processes == 1:
-        run()
-    else:
-        processes = [Process(target = run) for _ in range(n_processes)]
-
-        for process in processes:
-            process.start()
-            sleep(2)
+    r = Runner('test', (bi_ce_et(1, 0.),))
 
 
-        for process in processes:
-            process.join()
+    profiler = cProfile.Profile()
+    profiler.enable()
+
+
+    r.new_run()
+
+    profiler.disable()
+    stats = pstats.Stats(profiler).sort_stats('cumtime')
+    stats.print_stats()
+
+    # n_processes = int(sys.argv[1])
+    # print(f"Number of processes: {n_processes}")
+    #
+    # if n_processes == 1:
+    #     run()
+    # else:
+    #     processes = [Process(target = run) for _ in range(n_processes)]
+    #
+    #     for process in processes:
+    #         process.start()
+    #         sleep(2)
+    #
+    #
+    #     for process in processes:
+    #         process.join()
