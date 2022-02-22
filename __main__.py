@@ -1,6 +1,6 @@
 import os
 
-import patched_pyximport; patched_pyximport.install(__file__)
+import patched_pyximport; patched_pyximport.install()
 
 from runner import Runner
 from mods import (
