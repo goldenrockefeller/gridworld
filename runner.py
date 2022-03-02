@@ -183,11 +183,13 @@ class Runner:
                     rewards = trajectories[robot_id].rewards
 
                     if moving_critics[robot_id] is not None:
-                        moving_critics[robot_id].update(observations, moving_actions, rewards)
+                        keys = list(zip(observations, moving_actions))
+                        moving_critics[robot_id].update(keys, rewards)
 
 
                     if targetting_critics[robot_id] is not None:
-                        targetting_critics[robot_id].update(observations, target_types, rewards)
+                        keys = list(zip(observations, target_types))
+                        targetting_critics[robot_id].update(keys, rewards)
 
                 # Assign fitness score (here).
                 for robot_id in range(n_robots):
@@ -197,14 +199,16 @@ class Runner:
                     rewards = trajectories[robot_id].rewards
 
                     if moving_critics[robot_id] is not None:
-                        fitness = moving_critics[robot_id].eval(observations, moving_actions)
+                        keys = list(zip(observations, moving_actions))
+                        fitness = moving_critics[robot_id].eval(keys)
                     else:
                         fitness = sum(rewards)
 
                     moving_phenotypes[robot_id].fitness = fitness
 
                     if targetting_critics[robot_id] is not None:
-                        fitness = targetting_critics[robot_id].eval(observations, target_types)
+                        keys = list(zip(observations, target_types))
+                        fitness = targetting_critics[robot_id].eval(keys)
                     else:
                         fitness = sum(rewards)
 
@@ -256,12 +260,13 @@ class Runner:
             # (not really a good indicator of critic performance, but can show when things are going horribly wrong)
             critic_a = moving_critics[0]
             if critic_a is not None:
-                critic_a_eval = critic_a.eval(observations, moving_actions)
+                keys = list(zip(observations, moving_actions))
+                critic_a_eval = critic_a.eval(keys)
                 critic_a_score_loss = 0.5 * (critic_a_eval - score) ** 2
 
             scores.append(score)
             if critic_a is not None:
-                critic_a_evals.append(critic_a.eval(observations, moving_actions))
+                critic_a_evals.append(critic_a_eval)
                 critic_a_score_losses.append( critic_a_score_loss )
 
         # end "for epoch in range(n_epochs)":
