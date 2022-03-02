@@ -1,6 +1,7 @@
 import os
-build_path = os.path.join(os.path.dirname(__file__), ".pyxbld")
-import pyximport; pyximport.install(build_dir=build_path)
+
+import patched_pyximport; patched_pyximport.install()
+
 from runner import Runner
 from mods import (
     a, a_ce, a_ce_et, a_e, a_e_et, a_et, bi, bi_ce, bi_ce_et, bi_e, bi_e_et,
@@ -34,17 +35,17 @@ def run():
 
     mods_to_mix = [(
         noc, # No critic,
-        tw, # Trajectory-wise,
-        sw_e, # Step-Wise Ensemble
-        sw, # Step-Wise
-        q_et(1, 0.0001), # SARSA TD($\lambda$)
-        q_e_et(1, 0.0001), # SARSA Ensemble TD($\lambda$)
-        bi_et(1, 0.0), # Bidirectional TD(1)
-        bi_ce_et(1, 0.0), # Bidirectional (Combined) Ensemble TD(1)
-        bi_et(1, 0.0001), # Bidirectional TD($\lambda$)
-        bi_ce_et(1, 0.0001), # Bidirectional (Combined) Ensemble TD($\lambda$)
-        bi_ce_et(0, 0.0001), # Bidirectional (Combined) Ensemble TD(0)
-        a_ce_et(0, 0.0001), # Advantage(Combined) Ensemble TD($\lambda$)
+        # tw, # Trajectory-wise,
+        # sw_e, # Step-Wise Ensemble
+        # sw, # Step-Wise
+        # q_et(1, 0.0001), # SARSA TD($\lambda$)
+        # q_e_et(1, 0.0001), # SARSA Ensemble TD($\lambda$)
+        # bi_et(1, 0.0), # Bidirectional TD(1)
+        # bi_ce_et(1, 0.0), # Bidirectional (Combined) Ensemble TD(1)
+        # bi_et(1, 0.0001), # Bidirectional TD($\lambda$)
+        # bi_ce_et(1, 0.0001), # Bidirectional (Combined) Ensemble TD($\lambda$)
+        # bi_ce_et(0, 0.0001), # Bidirectional (Combined) Ensemble TD(0)
+        # a_ce_et(0, 0.0001), # Advantage(Combined) Ensemble TD($\lambda$)
     )]
 
     runners = [
@@ -73,8 +74,10 @@ if __name__ == '__main__':
     # profiler.disable()
     # stats = pstats.Stats(profiler).sort_stats('cumtime')
     # stats.print_stats()
-
-    n_processes = int(sys.argv[1])
+    try:
+        n_processes = int(sys.argv[1])
+    except:
+        n_processes = 1
     print(f"Number of processes: {n_processes}")
 
     if n_processes == 1:
