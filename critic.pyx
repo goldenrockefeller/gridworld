@@ -28,7 +28,8 @@
 # a "key" is either an observation, or an observation-action pair.
 
 
-from typing import  Sequence, Iterable, Optional, Hashable, Mapping, Tuple, Generic, MutableMapping, TypeVar
+from typing import  Sequence, Iterable, Optional, Hashable, Mapping, Tuple, Generic, MutableMapping, TypeVar, Protocol
+from abc import abstractmethod
 
 import numpy as np
 from libc.math cimport log, exp
@@ -610,9 +611,31 @@ class SteppedKalmanLearningRateScheme(Generic[ObservationT, ActionT]):
 def seq_mean(step_evals: Sequence[float]) -> float:
     return sum(step_evals) / len(step_evals)
 
+class CriticProtocol(Protocol):
+    @abstractmethod
+    def copy(self):
+        raise NotImplementedError("Abstract method")
+
+    @abstractmethod
+    def update(self, observations: Sequence[ObservationT], actions: Sequence[ActionT], rewards: Sequence[float]):
+        raise NotImplementedError("Abstract method")
+
+    @abstractmethod
+    def eval(self, observations: Sequence[ObservationT], actions: Sequence[ActionT]):
+        raise NotImplementedError("Abstract method")
+
+    @abstractmethod
+    def step_evals(self, observations: Sequence[ObservationT], actions: Sequence[ActionT]) -> Sequence[float]:
+        raise NotImplementedError("Abstract method")
+
+    @abstractmethod
+    def advance_process(self):
+        raise NotImplementedError("Abstract method")
 
 class Critic(Generic[ObservationT, ActionT]):
     """Fitness Critic using lookup table as underlying functional model"""
+    fn_aggregation: Callable[[Sequence[float]], float]
+
     def __init__(self, all_keys: Iterable[ExperienceT], has_only_observation_as_key = False):
         self.learning_rate_scheme = BasicLearningRateScheme()
         self.core = {key: 0. for key in all_keys}
@@ -786,6 +809,8 @@ cdef class BaseEnsembleCriticCore():
     cdef public object fn_aggregation
     cdef public Py_ssize_t n_steps
 
+    fn_aggregation: Callable[[Sequence[float]], float]
+
     def __init__(self,  all_keys: Iterable[ExperienceT], n_steps, has_only_observation_as_key = False):
 
         self.info = {key: EnsembleInfo(n_steps) for key in all_keys}
@@ -827,7 +852,6 @@ cdef class BaseEnsembleCriticCore():
         the_copy = self.__class__.__new__(self.__class__)
         the_copy.__setstate__(self.__getstate__())
         return the_copy
-
 
 
 class BaseEnsembleCritic(Generic[ObservationT, ActionT]):
@@ -1448,6 +1472,10 @@ class ABaseCritic(Generic[ObservationT, ActionT]):
 
 
 class ACritic(ABaseCritic[ObservationT, ActionT]):
+    u_critic: CriticProtocol[ObservationT, ActionT]
+    q_critic: CriticProtocol[ObservationT, ActionT]
+    fn_aggregation: Callable[[Sequence[float]], float]
+
     def __init__(self, all_q_keys: Iterable[ExperienceT], all_v_keys: Iterable[ObservationOnlyT]):
         self.q_critic = QCritic(all_q_keys)
         self.v_critic = VCritic(all_v_keys)
@@ -1473,6 +1501,8 @@ class ACritic(ABaseCritic[ObservationT, ActionT]):
     #     critic.all_v_keys = self.all_v_keys
 
 class AEnsembleCritic(ABaseCritic[ObservationT, ActionT]):
+    fn_aggregation: Callable[[Sequence[float]], float]
+
     def __init__(self, all_q_keys: Iterable[ExperienceT], all_v_keys: Iterable[ObservationOnlyT], n_steps):
         self.q_critic = QEnsembleCritic(all_q_keys, n_steps)
         self.v_critic = VEnsembleCritic(all_v_keys, n_steps)
@@ -1502,6 +1532,8 @@ class AEnsembleCritic(ABaseCritic[ObservationT, ActionT]):
 
 
 class ACombinedEnsembleCritic(Generic[ObservationT, ActionT]):
+    fn_aggregation: Callable[[Sequence[float]], float]
+
     def __init__(self, all_q_keys: Iterable[ExperienceT],  all_v_keys: Iterable[ObservationOnlyT], n_steps):
         self.q_critic = QEnsembleCritic(all_q_keys, n_steps)
         self.v_critic = VEnsembleCritic(all_v_keys, n_steps)
@@ -1596,6 +1628,10 @@ class ACombinedEnsembleCritic(Generic[ObservationT, ActionT]):
 
 
 class BiBaseCritic(Generic[ObservationT, ActionT]):
+    u_critic: CriticProtocol[ObservationT, ActionT]
+    q_critic: CriticProtocol[ObservationT, ActionT]
+    fn_aggregation: Callable[[Sequence[float]], float]
+
     def __init__(self):
         raise NotImplementedError("Abstract Method")
 
@@ -1654,6 +1690,8 @@ class BiBaseCritic(Generic[ObservationT, ActionT]):
         self.q_critic.trace_sustain = val
 
 class BiCritic(BiBaseCritic[ObservationT, ActionT]):
+    fn_aggregation: Callable[[Sequence[float]], float]
+
     def __init__(self, all_q_keys: Iterable[ExperienceT], all_u_keys: Iterable[ObservationOnlyT]):
         self.q_critic = QCritic(all_q_keys)
         self.u_critic = UCritic(all_u_keys)
@@ -1683,6 +1721,8 @@ class BiCritic(BiBaseCritic[ObservationT, ActionT]):
 
 
 class BiEnsembleCritic(BiBaseCritic[ObservationT, ActionT]):
+    fn_aggregation: Callable[[Sequence[float]], float]
+
     def __init__(self, all_q_keys: Iterable[ExperienceT], all_u_keys: Iterable[ObservationOnlyT], n_steps):
         self.q_critic = QEnsembleCritic(all_q_keys, n_steps)
         self.u_critic = UEnsembleCritic(all_u_keys, n_steps)
@@ -1716,6 +1756,8 @@ class BiEnsembleCritic(BiBaseCritic[ObservationT, ActionT]):
     #     self.u_critic = UEnsembleCritic(all_keys_u)
 
 class BiCombinedEnsembleCritic(Generic[ObservationT, ActionT]):
+    fn_aggregation: Callable[[Sequence[float]], float]
+
     def __init__(self, all_q_keys: Iterable[ExperienceT], all_u_keys: Iterable[ObservationOnlyT], n_steps):
         self.q_critic = QEnsembleCritic(all_q_keys, n_steps)
         self.u_critic = UEnsembleCritic(all_u_keys, n_steps)

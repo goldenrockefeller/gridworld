@@ -19,6 +19,7 @@ rng = default_rng()
 # from min_entropy_dist import min_entropy_dist_exp_cg, min_entropy_dist_cg
 from enum import IntEnum
 from typing import Tuple, Protocol
+from abc import abstractmethod
 
 cdef class Pos:
     cdef public int row
@@ -450,12 +451,14 @@ class GoalRecord:
         self.cols = [None for i in range(n_steps)]
 
 class MovingPolicy(Protocol):
+    @abstractmethod
     def action(self, observation: Observation, possible_actions: List[MovingAction]) -> MovingAction:
-        ...
+        raise NotImplementedError("Abstract method")
 
 class TargettingPolicy(Protocol):
+    @abstractmethod
     def action(self, observation: Observation, possible_actions: List[TargetType]) -> TargetType:
-        ...
+        raise NotImplementedError("Abstract method")
 
 class DomainRecord:
     def __init__(self, domain):
