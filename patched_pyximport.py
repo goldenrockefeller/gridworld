@@ -1,5 +1,5 @@
 import pyximport
-import pathlib
+from pathlib import Path
 import importlib
 import sys
 import pickle
@@ -7,21 +7,22 @@ from dataclasses import dataclass
 import os
 
 from Cython.Compiler import Options
-from Cython.Build.Dependencies import create_dependency_tree
+from Cython.Build.Dependencies import create_dependency_tree, create_extension_list, DistutilsInfo
 from Cython.Distutils.build_ext import build_ext
+from typing import Iterable, Set, MutableSet, Mapping, MutableMapping, Tuple, Union, Optional
+from Cython.Compiler.Options import CompilationOptions
+from Cython.Compiler.Main import Context
 
+StrOrPath = Union[str, Path]
 
 # Temporary directories are long because pyximport "doubles" the parent directory path.
-
-def new_finalize_options(bld_ext):
-    old_finalize_options = bld_ext.finalize_options
-    def finalize_options(bld_ext):
-        bld_ext.build_temp = str(pathlib.Path.home().joinpath("_pyxbld").joinpath("temp"))
+def replace_cython_temp_build_dir(dir: StrOrPath):
+    old_finalize_options = build_ext.finalize_options
+    def new_finalize_options(bld_ext):
+        bld_ext.build_temp = str(dir)
         old_finalize_options(bld_ext)
-    return finalize_options
 
-def replace_cython_build_ext():
-    build_ext.finalize_options = new_finalize_options(build_ext)
+    build_ext.finalize_options = new_finalize_options
 
 @dataclass
 class PathStat:
@@ -29,64 +30,172 @@ class PathStat:
     st_size: int
 
     @staticmethod
-    def from_path(path):
-        path = pathlib.Path(path)
+    def from_path(path: Path):
         stat = path.stat()
         return PathStat(stat.st_mtime, stat.st_size)
 
 class RecordedPathStatsManager:
-    def __init__(self, stats_path):
-        self.stats_path = stats_path
-        self.stats = recorded_stats_from_path(stats_path)
-        self.dependency_tree = create_dependency_tree()
+    ref_dir: Path
+    stats_path: Path
+    dependency_map_path: Path
 
-    def save_stats(self):
-        save_recorded_stats_to_path(self.stats, self.stats_path)
+    # "self.stats" maps source and dependency combination to the recorded timestamp
+    # for the dependency where the recorded timestamp was recorded with the last compilation of source
+    # Note that the source is a dependency of itself.
+    stats: MutableMapping[Tuple[Path, Path], PathStat]
 
-    def update_stats_for_path(self, path):
-        self.stats[str(path)] = PathStat.from_path(path)
-        self.save_stats()
+    # "self.dependency_map" maps source to the recorded set of dependencies
+    # for the source  where the recorded set of dependencies was recorded
+    # with the last compilation of source
+    # Note that the source is a dependency of itself.
+    dependency_map: MutableMapping[Path, MutableSet[Path]]
 
-    def check_and_touch_one(self, path):
-        path = pathlib.Path(path)
-        if self.stats.get(str(path)) != PathStat.from_path(path):
-            path.touch()
-            self.update_stats_for_path(path)
+    def __init__(self, ref_dir: Path):
+        self.ref_dir = ref_dir
 
-    def check_and_touch_dependencies(self, source_path):
-        str_dependency_paths = self.dependency_tree.all_dependencies(str(source_path))
+        self.stats_path = self.ref_dir.joinpath("recorded_stats.pkl")
+        self.dependency_map_path = self.ref_dir.joinpath("recorded_dependency_map.pkl")
 
-        for str_path in str_dependency_paths:
-            self.check_and_touch_one(str_path)
+        self.stats = load_object(self.stats_path, default = {})
+        self.dependency_map = load_object(self.dependency_map_path, default = {})
+        # self.dependency_tree = create_dependency_tree()
+
+    # def update_stats_for_path(self, path):
+    #     self.stats[path)] = PathStat.from_path(path)
+    #     self.save_stats()
+
+    def module_stats_has_changed(self, source: Path, dependencies: Iterable[Path]):
+        return module_stats_has_changed(source, dependencies, self.stats, self.dependency_map)
+
+    def module_dependencies_has_changed(self, source: Path, dependencies: Iterable[Path]):
+        return module_dependencies_has_changed(source, dependencies, self.dependency_map)
+
+    def update_dependencies_for_module(self, source: Path, dependencies: Iterable[Path]):
+
+        if self.module_dependencies_has_changed(source, dependencies):
+            prev_dependencies = self.dependency_map.get(source, [])
+
+            self.dependency_map[source] = set(dependencies)
+            save_object(self.dependency_map, self.dependency_map_path)
+
+            recorded_stats_have_changed = False
+
+            for prev_dependency in prev_dependencies:
+                if prev_dependency not in dependencies:
+                    del self.stats[source, prev_dependency]
+                    recorded_stats_have_changed = True
+
+            if recorded_stats_have_changed:
+                save_object(self.stats, self.stats_path)
+
+    def update_stats_for_module(self, source: Path, dependencies: Iterable[Path]):
+        self.update_dependencies_for_module(source, dependencies)
+
+        if self.module_stats_has_changed(source, dependencies):
+            for dependency in dependencies:
+                self.stats[(source, dependency)] = (
+                    PathStat.from_path(dependency)
+                )
+            save_object(self.stats, self.stats_path)
+
+    # def check_and_touch_one(self, path):
+    #     path = Path(path)
+    #     if self.stats.get(path)) != PathStat.from_path(path):
+    #         path.touch()
+    #         self.update_stats_for_path(path)
+
+    # def check_and_touch_dependencies(self, source):
+    #     str_dependencies = self.dependency_tree.all_dependencies(str(source))
+    #
+    #     for str_path in str_dependencies:
+    #         self.check_and_touch_one(str_path)
+
+def cython_will_compile(source: Path, dependencies: Iterable[Path]):
+    will_compile = False
+
+    ext = source.suffix
+    source_as_str = str(source)
+    info = DistutilsInfo(source_as_str).values
+    if ext in ('.pyx', '.py'):
+        if info.get("np_pythran", False):
+            c_path = source.with_suffix('.cpp')
+        elif info.get("language") == 'c++':
+            c_path = source.with_suffix('.cpp')
+        else:
+            c_path = source.with_suffix('.c')
+
+        # Missing files and those generated by other Cython versions should always be recreated.
+        # TODO: next few line needs to be updated for future versions of Cython
+        if c_path.exists():
+            c_timestamp = c_path.stat().st_mtime
+        else:
+            c_timestamp = -1
+
+        # Priority goes first to modified files, second to direct
+        # dependents, and finally to indirect dependents.
+        for dependency in dependencies:
+            if dependency.stat().st_mtime > c_timestamp:
+                return True
+
+        return False
 
 
+def module_stats_has_changed(
+    source: Path,
+    dependencies: Iterable[Path],
+    recorded_stats: Mapping[Tuple[Path, Path], PathStat],
+    recorded_dependency_map: Mapping[Path, Set[Path]]
+):
+    if module_dependencies_has_changed(source, dependencies, recorded_dependency_map):
+        return True
 
-def recorded_stats_from_path(path):
+    current_dependency_stats = [
+        PathStat.from_path(dependency)
+        for dependency
+        in dependencies
+    ]
+    recorded_dependency_stats = [
+        recorded_stats.get((source, dependency))
+        for dependency
+        in dependencies
+    ]
 
-    recorded_stats = {}
+    return current_dependency_stats != recorded_dependency_stats
+
+def module_dependencies_has_changed(
+    source: Path,
+    dependencies: Iterable[Path],
+    recorded_dependency_map: Mapping[Path, Set[Path]]
+):
+    return set(dependencies) !=  recorded_dependency_map.get(source)
+
+def save_object(obj, path: Path):
+    if not path.parent.exists():
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(path, 'wb') as save_file:
+        pickle.dump(obj, save_file)
+
+def load_object(path: Path, default):
+    obj = default
 
     if path.exists():
-        with open(path, 'rb') as recorded_stats_file:
-            recorded_stats = pickle.load(recorded_stats_file)
+        with open(path, 'rb') as load_file:
+            obj = pickle.load(load_file)
 
-    return recorded_stats
-
-def save_recorded_stats_to_path(recorded_stats, path):
-    with open(path, 'wb') as recorded_stats_file:
-        pickle.dump(recorded_stats, recorded_stats_file)
-
+    return obj
 
 #
-# def module_is_up_to_date(source_path, dependency_paths, recorded_stats):
+# def module_is_up_to_date(source, dependencies, recorded_stats):
 #     current_dependency_stats = [
-#         PathStat.from_path(dependency_path)
-#         for dependency_path
-#         in dependency_paths
+#         PathStat.from_path(dependency)
+#         for dependency
+#         in dependencies
 #     ]
 #     recorded_dependency_stats = [
-#         recorded_stats.get((str(source_path), str(dependency_path)))
-#         for dependency_path
-#         in dependency_paths
+#         recorded_stats.get((source, dependency))
+#         for dependency
+#         in dependencies
 #     ]
 #
 #     return current_dependency_stats == recorded_dependency_stats
@@ -103,7 +212,7 @@ def get_path_from_spec(spec, ext):
         if not spec.origin:
             return None
 
-        path = pathlib.Path(spec.origin)
+        path = Path(spec.origin)
 
         if path.stem == "__init__":
             return None
@@ -120,16 +229,16 @@ def uninstall_importers():
             sys.meta_path.remove(importer)
 
 
-def package_dir(source_path, fullname):
+def package_dir(source: Path, fullname: str):
     mod_split = fullname.split(".")
 
     if len(mod_split) == 1:
         # This is a free module
-        return source_path.parent
+        return source.parent
     else:
         # This module is in a package
         modname = mod_split.pop()
-        dir = source_path.parent
+        dir = source.parent
 
         while len(mod_split) > 1:
             pkg_name = mod_split.pop()
@@ -153,6 +262,7 @@ class PyPxdImporter(pyximport.PyImporter):
         )
         self.checked_names = set()
         self.recorded_stats_manager = recorded_stats_manager
+        self.dependency_tree = create_dependency_tree()
 
     def find_module(self, fullname, package_path=None):
 
@@ -162,14 +272,22 @@ class PyPxdImporter(pyximport.PyImporter):
             self.checked_names.add(fullname)
             spec = importlib.util.find_spec(fullname)
 
-        source_path = get_path_from_spec(spec, ".py")
+        source = get_path_from_spec(spec, ".py")
 
-        if source_path is not None:
-            pxd_path = source_path.parent.joinpath(source_path.stem).with_suffix(".pxd")
+        if source is not None:
+            pxd_path = source.parent.joinpath(source.stem).with_suffix(".pxd")
 
             if pxd_path.exists():
-                self.recorded_stats_manager.check_and_touch_dependencies(source_path)
-                self.pyxbuild_dir = package_dir(source_path, fullname).joinpath("_pyxbld")
+                str_dependencies = self.dependency_tree.all_dependencies(str(source))
+                dependencies = set(Path(str_path) for str_path in str_dependencies)
+
+                if not cython_will_compile(source, dependencies):
+                    if self.recorded_stats_manager.module_stats_has_changed(source, dependencies):
+                        print(f"Patched Pyximport is touching {str(source)} to ensure compilation")
+                        source.touch()
+
+                self.recorded_stats_manager.update_stats_for_module(source, dependencies)
+                self.pyxbuild_dir = package_dir(source, fullname).joinpath("_pyxbld")
                 return pyximport.PyImporter.find_module(self, fullname, package_path)
             else:
                 return None
@@ -191,24 +309,38 @@ class PyxImporter(pyximport.PyxImporter):
         )
 
         self.recorded_stats_manager = recorded_stats_manager
+        self.dependency_tree = create_dependency_tree()
 
     def find_module(self, fullname, package_path=None):
 
         loader = pyximport.PyxImporter.find_module(self, fullname, package_path)
 
         if loader is not None:
-            source_path = pathlib.Path(loader.path)
-            self.recorded_stats_manager.check_and_touch_dependencies(source_path)
-            loader.pyxbuild_dir = package_dir(source_path, fullname).joinpath("_pyxbld")
+            source = Path(loader.path)
+
+            str_dependencies = self.dependency_tree.all_dependencies(str(source))
+            dependencies = set(Path(str_path) for str_path in str_dependencies)
+
+            if not cython_will_compile(source, dependencies):
+                if self.recorded_stats_manager.module_stats_has_changed(source, dependencies):
+                    print(f"Patched Pyximport is touching {str(source)} to ensure compilation")
+                    source.touch()
+
+            self.recorded_stats_manager.update_stats_for_module(source, dependencies)
+            loader.pyxbuild_dir = package_dir(source, fullname).joinpath("_pyxbld")
 
         return loader
 
-def install(annotating = True):
+def install(annotating = True, recorded_stats_dir: Optional[StrOrPath] = None, temp_build_dir: Optional[StrOrPath] = None):
 
-    replace_cython_build_ext()
+    if temp_build_dir is None:
+        temp_build_dir = Path.home().joinpath("_pyxbld").joinpath("temp")
 
-    recorded_stats_path = pathlib.Path.home().joinpath("_pyxbld").joinpath("recorded_stats.pkl")
-    recorded_stats_manager = RecordedPathStatsManager(recorded_stats_path)
+    replace_cython_temp_build_dir(temp_build_dir)
+
+    if recorded_stats_dir is None:
+        recorded_stats_dir = Path.home().joinpath("_pyxbld")
+    recorded_stats_manager = RecordedPathStatsManager(Path(recorded_stats_dir))
 
     # Next line is needed to define 'pyxargs'
     pyximport.install(build_in_temp = False)
