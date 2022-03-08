@@ -1,29 +1,30 @@
 from numpy.random import default_rng
 import numpy as np
 from typing import Mapping, Generic, TypeVar, Iterable, Hashable, MutableMapping, Sequence
-
 rng = default_rng()
 
 ObservationT = TypeVar("ObservationT", bound = Hashable)
 ActionT = TypeVar("ActionT", bound = Hashable)
 
 # This types maps an observation to an action-sampling distribution, which maps an action to a probability
-ActiontoDistributionT = MutableMapping[ActionT, float]
-ObservationToDistributionT = Mapping[ObservationT, ActiontoDistributionT]
+ActionToProbabilityT = MutableMapping[ActionT, float]
+ObservationToDistributionT = Mapping[ObservationT, ActionToProbabilityT]
 
 def array_from_action_probs(
-    action_probs: ActiontoDistributionT,
+    action_probs: ActionToProbabilityT,
     all_actions: Sequence[ActionT]
 ) -> np.array:
     return np.array([action_probs[all_actions[action_id]] for action_id in range(len(all_actions))])
 
 def update_action_probs_with_array(
-    action_probs: ActiontoDistributionT,
+    action_probs: ActionToProbabilityT,
     arr: Sequence[float],
     all_actions: Sequence[ActionT]
 ):
     for action_id, action in enumerate(all_actions):
         action_probs[action] = arr[action_id]
+
+
 
 
 class Policy(Generic[ObservationT, ActionT]):
@@ -49,25 +50,25 @@ class Policy(Generic[ObservationT, ActionT]):
 
     def action(self, observation: ObservationT, possible_actions: Iterable[ActionT]) -> ActionT:
         r = rng.random()
-        action_multinomial_probs = self.observation_to_multinomial_map[observation]
+        action_to_prob_map = self.observation_to_multinomial_map[observation]
 
         prob_sum = 0.
         for some_action in possible_actions:
-            prob_sum += action_multinomial_probs[some_action]
+            prob_sum += action_to_prob_map[some_action]
 
         possible_prob_sum = r * prob_sum
 
         prob_counter = 0.
         for some_action in possible_actions:
             selected_action = some_action
-            prob_counter += action_multinomial_probs[selected_action]
+            prob_counter += action_to_prob_map[selected_action]
             if prob_counter > possible_prob_sum:
                 break
 
         return selected_action
 
     def random_reinit(self, observation_dirichlet_map: ObservationToDistributionT):
-        self.observation_multinomial_map: ObservationToDistributionT = {}
+        # self.observation_to_multinomial_map: ObservationToDistributionT = {}
 
         for observation in observation_dirichlet_map:
             all_actions = list(observation_dirichlet_map[observation].keys())
@@ -79,10 +80,10 @@ class Policy(Generic[ObservationT, ActionT]):
                     )
                 )
             )
-            action_multinomial_probs = {}
-            update_action_probs_with_array(action_multinomial_probs, new_multinomial, all_actions)
-            # action_multinomial_probs = rng.dirichlet(observation_dirichlet_map[observation])
-            self.observation_multinomial_map[observation] = action_multinomial_probs
+            # action_to_prob_map = {}
+            update_action_probs_with_array(self.observation_to_multinomial_map[observation], new_multinomial, all_actions)
+            # action_to_prob_map = rng.dirichlet(observation_dirichlet_map[observation])
+            # self.observation_to_multinomial_map[observation] = action_to_prob_map
 
     # def copy(self):
     #     policy = Policy(self.n_rows, self.n_cols)

@@ -1,5 +1,5 @@
 import numpy as np
-from policy import Policy, array_from_action_probs, update_action_probs_with_array, ActiontoDistributionT, ObservationToDistributionT
+from policy import Policy, array_from_action_probs, update_action_probs_with_array, ActionToProbabilityT, ObservationToDistributionT
 from dirichlet_cross_entropy_opt import min_divergence_dirichlet_exp_cg
 from typing import Sequence, List, TypeVar, Mapping, Protocol,MutableMapping, Generic, Hashable, Iterable
 
@@ -7,8 +7,6 @@ from typing import Sequence, List, TypeVar, Mapping, Protocol,MutableMapping, Ge
 ObservationT = TypeVar("ObservationT", bound = Hashable)
 ActionT = TypeVar("ActionT", bound = Hashable)
 PolicyT = TypeVar("PolicyT", bound = Policy)
-ActiontoDistributionT = MutableMapping[ActionT, float]
-ObservationToDistributionT = Mapping[ObservationT, ActiontoDistributionT]
 
 
 class Phenotype(Generic[PolicyT]):
@@ -80,8 +78,8 @@ def update_dist(
         data = [None] * len(elite_policies)
         for policy_id in range(len(elite_policies)):
             policy = elite_policies[policy_id]
-            action_multinomial_probs = policy.observation_to_multinomial_map[observation]
-            data[policy_id] = array_from_action_probs(action_multinomial_probs, all_actions)
+            action_to_prob_map = policy.observation_to_multinomial_map[observation]
+            data[policy_id] = array_from_action_probs(action_to_prob_map, all_actions)
 
         result = (
             min_divergence_dirichlet_exp_cg(
