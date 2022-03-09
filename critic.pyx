@@ -625,7 +625,7 @@ cdef class EnsembleInfo:
     cdef public double traj_value
     cdef public double traj_weight
     cdef public double traj_mul
-    cdef public double traj_last_visited
+    cdef public Py_ssize_t traj_last_visited
     cdef public list stepped_values
     cdef public list stepped_weights
     cdef public list stepped_muls
@@ -688,7 +688,7 @@ cdef class BaseEnsembleCriticCore():
     """
     cdef public dict info
     cdef public double process_noise
-    cdef public double n_process_steps_elapsed
+    cdef public Py_ssize_t n_process_steps_elapsed
     cdef public bint has_only_observation_as_key
     cdef public object fn_aggregation
     cdef public Py_ssize_t n_steps
@@ -762,6 +762,14 @@ class BaseEnsembleCritic(Generic[KeyT]):
         the_copy.__setstate__(self.__getstate__())
         return the_copy
 
+
+    @property
+    def process_noise(self):
+        raise RuntimeError()
+
+    @process_noise.setter
+    def process_noise(self, val):
+        raise RuntimeError()
     # def copy(self):
     #
     #     critic = self.__class__(self.core.info, self.core.n_steps)
