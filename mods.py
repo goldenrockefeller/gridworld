@@ -153,10 +153,10 @@ def sw_e(args):
     n_steps = args["n_steps"]
 
     args["moving_critic_template"] = SwEnsembleCritic(all_moving_keys, n_steps)
-    args["moving_critic_template"].process_noise = args["process_noise"]
+    args["moving_critic_template"].core.process_noise = args["process_noise"]
 
     args["targetting_critic_template"] = SwEnsembleCritic(all_target_keys, n_steps)
-    args["targetting_critic_template"].process_noise = args["process_noise"]
+    args["targetting_critic_template"].core.process_noise = args["process_noise"]
 
 def q(args):
     n_steps = args["n_steps"]
@@ -200,11 +200,11 @@ def q_e(args):
     n_steps = args["n_steps"]
 
     args["moving_critic_template"] = TdEnsembleCritic(all_moving_keys, n_steps)
-    args["moving_critic_template"].process_noise = args["process_noise"]
+    args["moving_critic_template"].core.process_noise = args["process_noise"]
     args["moving_critic_template"].trace_sustain = 1.
 
     args["targetting_critic_template"] = TdEnsembleCritic(all_target_keys, n_steps)
-    args["targetting_critic_template"].process_noise = args["process_noise"]
+    args["targetting_critic_template"].core.process_noise = args["process_noise"]
     args["targetting_critic_template"].trace_sustain = 1.
 
 def q_e_et(a, b):
@@ -322,13 +322,13 @@ def bi_e(args):
     n_steps = args["n_steps"]
 
     args["moving_critic_template"] = BiEnsembleCritic(all_observations, all_moving_actions, n_steps)
-    args["moving_critic_template"].u_critic.process_noise = args["process_noise"]
-    args["moving_critic_template"].q_critic.process_noise = args["process_noise"]
+    args["moving_critic_template"].u_critic.core.process_noise = args["process_noise"]
+    args["moving_critic_template"].q_critic.core.process_noise = args["process_noise"]
     args["moving_critic_template"].trace_sustain = 1.
 
     args["targetting_critic_template"] = BiEnsembleCritic(all_observations, all_target_types, n_steps)
-    args["targetting_critic_template"].u_critic.process_noise = args["process_noise"]
-    args["targetting_critic_template"].q_critic.process_noise = args["process_noise"]
+    args["targetting_critic_template"].u_critic.core.process_noise = args["process_noise"]
+    args["targetting_critic_template"].q_critic.core.process_noise = args["process_noise"]
     args["targetting_critic_template"].trace_sustain = 1.
 
 def bi_e_et(a, b):
@@ -344,16 +344,16 @@ def bi_ce(args):
 
 
     args["moving_critic_template"] = BiCombinedEnsembleCritic(all_observations, all_moving_actions, n_steps)
-    args["moving_critic_template"].u_critic.process_noise = args["process_noise"]
-    args["moving_critic_template"].q_critic.process_noise = args["process_noise"]
-    args["moving_critic_template"].core.process_noise = args["process_noise"]
+    args["moving_critic_template"].u_critic.core.process_noise = args["process_noise"]
+    args["moving_critic_template"].q_critic.core.process_noise = args["process_noise"]
+    args["moving_critic_template"].core.core.process_noise = args["process_noise"]
     args["moving_critic_template"].trace_sustain = 1.
 
 
     args["targetting_critic_template"] = BiCombinedEnsembleCritic(all_observations, all_target_types, n_steps)
-    args["targetting_critic_template"].u_critic.process_noise = args["process_noise"]
-    args["targetting_critic_template"].q_critic.process_noise = args["process_noise"]
-    args["targetting_critic_template"].core.process_noise = args["process_noise"]
+    args["targetting_critic_template"].u_critic.core.process_noise = args["process_noise"]
+    args["targetting_critic_template"].q_critic.core.process_noise = args["process_noise"]
+    args["targetting_critic_template"].core.core.process_noise = args["process_noise"]
     args["targetting_critic_template"].trace_sustain = 1.
 
 
@@ -524,13 +524,13 @@ def a_e(args):
     n_steps = args["n_steps"]
 
     args["moving_critic_template"] = AEnsembleCritic(all_observations, all_moving_actions, n_steps)
-    args["moving_critic_template"].v_critic.process_noise = args["process_noise"]
-    args["moving_critic_template"].q_critic.process_noise = args["process_noise"]
+    args["moving_critic_template"].v_critic.core.process_noise = args["process_noise"]
+    args["moving_critic_template"].q_critic.core.process_noise = args["process_noise"]
     args["moving_critic_template"].trace_sustain = 1.
 
     args["targetting_critic_template"] = AEnsembleCritic(all_observations, all_target_types, n_steps)
-    args["targetting_critic_template"].v_critic.process_noise = args["process_noise"]
-    args["targetting_critic_template"].q_critic.process_noise = args["process_noise"]
+    args["targetting_critic_template"].v_critic.core.process_noise = args["process_noise"]
+    args["targetting_critic_template"].q_critic.core.process_noise = args["process_noise"]
     args["targetting_critic_template"].trace_sustain = 1.
 
 
@@ -547,15 +547,15 @@ def a_ce(args):
 
 
     args["moving_critic_template"] = ACombinedEnsembleCritic(all_observations, all_moving_actions, n_steps)
-    args["moving_critic_template"].v_critic.process_noise = args["process_noise"]
-    args["moving_critic_template"].q_critic.process_noise = args["process_noise"]
-    args["moving_critic_template"].core.process_noise = args["process_noise"]
+    args["moving_critic_template"].v_critic.core.process_noise = args["process_noise"]
+    args["moving_critic_template"].q_critic.core.process_noise = args["process_noise"]
+    args["moving_critic_template"].core.core.process_noise = args["process_noise"]
     args["moving_critic_template"].trace_sustain = 1.
 
     args["targetting_critic_template"] = ACombinedEnsembleCritic(all_observations, all_target_types, n_steps)
-    args["targetting_critic_template"].v_critic.process_noise = args["process_noise"]
-    args["targetting_critic_template"].q_critic.process_noise = args["process_noise"]
-    args["targetting_critic_template"].core.process_noise = args["process_noise"]
+    args["targetting_critic_template"].v_critic.core.process_noise = args["process_noise"]
+    args["targetting_critic_template"].q_critic.core.process_noise = args["process_noise"]
+    args["targetting_critic_template"].core.core.process_noise = args["process_noise"]
     args["targetting_critic_template"].trace_sustain = 1.
 
 
